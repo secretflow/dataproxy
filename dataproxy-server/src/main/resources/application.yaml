@@ -1,0 +1,26 @@
+spring:
+  #  profiles:
+  #    active: local
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  application:
+    name: dataproxy
+  servlet:
+    multipart:
+      max-file-size: -1
+      max-request-size: -1
+      file-size-threshold: -1
+
+logging:
+  level:
+    root: info
+  file:
+    path: "./logs"
+
+dataproxy:
+  flight:
+    host: 127.0.0.1  # getFlightInfo 返回的endpoint ip
+    port: 8023
+  ticket:
+    timeout: 300 # 过期时间，单位秒
+    onlyOnce: true # 是否一次性，true:一次性使用，false:允许多次调用，超时销毁

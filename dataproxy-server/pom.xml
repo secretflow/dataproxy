@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.secretflow</groupId>
+        <artifactId>dataproxy</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>dataproxy-server</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.secretflow</groupId>
+            <artifactId>dataproxy-manager</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.secretflow</groupId>
+            <artifactId>dataproxy-service</artifactId>
+        </dependency>
+
+        <!-- common start -->
+        <dependency>
+            <groupId>javax.validation</groupId>
+            <artifactId>validation-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+        </dependency>
+        <!-- common end -->
+
+        <!-- aop start -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+        </dependency>
+        <!-- aop end -->
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--implementation-->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <outputDirectory>../target</outputDirectory>
+                    <finalName>dataproxy</finalName>
+                </configuration>
+            </plugin>
+        </plugins>
+        <testResources>
+            <testResource>
+                <directory>../config</directory>
+                <targetPath>${project.basedir}/config</targetPath>
+            </testResource>
+            <testResource>
+                <directory>../scripts/test</directory>
+                <targetPath>${project.basedir}/config</targetPath>
+            </testResource>
+        </testResources>
+    </build>
+
+</project>

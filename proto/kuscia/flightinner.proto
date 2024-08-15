@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package kuscia.proto.api.v1alpha1.datamesh;
+
+import "kuscia/domaindata.proto";
+import "kuscia/flightdm.proto";
+import "kuscia/domaindatasource.proto";
+
+option java_package = "org.secretflow.v1alpha1.kusciaapi";
+
+message CommandDataMeshQuery {
+  CommandDomainDataQuery query = 1;
+  DomainData domaindata = 2 ;
+  DomainDataSource datasource = 3;
+}
+
+message CommandDataMeshUpdate {
+  CommandDomainDataUpdate update = 1;
+  DomainData domaindata = 2 ;
+  DomainDataSource datasource = 3;
+}
