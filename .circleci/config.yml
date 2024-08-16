@@ -1,0 +1,103 @@
+# Copyright 2024 Ant Group Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: 2.1
+
+parameters:
+  GHA_Actor:
+    type: string
+    default: ""
+  GHA_Action:
+    type: string
+    default: ""
+  GHA_Event:
+    type: string
+    default: ""
+  GHA_Meta:
+    type: string
+    default: ""
+
+executors:
+  openjdk-executor-17:
+    docker:
+      - image: cimg/openjdk:17.0
+
+jobs:
+  build-and-push:
+    executor: openjdk-executor-17
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Jar
+          command: make build
+      - run:
+          name: Push to Docker Hub
+          command: |
+            # login dataproxy dockerhub registry
+            docker login -u ${DOCKER_DEPLOY_USERNAME} -p ${DOCKER_DEPLOY_TOKEN}
+            # login dataproxy aliyun registry
+            docker login -u ${ALIYUN_DOCKER_USERNAME} -p ${ALIYUN_DOCKER_PASSWORD}  secretflow-registry.cn-hangzhou.cr.aliyuncs.com
+            CIRCLETAG=$(echo ${CIRCLE_TAG} | sed 's/v//')
+
+            BUILDER_EXISTS=$(
+              docker buildx inspect dataproxy_image_buildx >/dev/null 2>&1
+              echo $?
+            )
+
+            if [ "$BUILDER_EXISTS" -eq 0 ]; then
+              echo "existing buildx builder: dataproxy_image_buildx"
+              docker buildx use dataproxy_image_buildx
+            else
+              echo "creating new buildx builder: dataproxy_image_buildx"
+              docker buildx create --name dataproxy_image_buildx --use
+            fi
+
+            remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:latest"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
+
+            remote_image="secretflow/dataproxy:latest"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
+
+            remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:${CIRCLETAG}"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
+
+            remote_image="secretflow/dataproxy:${CIRCLETAG}"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
+
+workflows:
+  build-deploy:
+    jobs:
+      - build-and-push:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
