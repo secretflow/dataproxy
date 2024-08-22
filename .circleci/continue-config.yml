@@ -65,7 +65,7 @@ commands:
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
-  linux_ut:
+  sdk_linux_ut:
     # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
     docker:
@@ -81,7 +81,7 @@ jobs:
       - checkout
       - sdk_build_and_test
 
-  macOS_ut:
+  sdk_macOS_ut:
     macos:
       xcode: 15.1.0
     resource_class: macos.m1.medium.gen1
@@ -99,5 +99,5 @@ workflows:
       - linux_ut:
           matrix:
             parameters:
-              resource_class: ["large", "arm.large"]
+              resource_class: ["xlarge", "arm.xlarge"]
       - macOS_ut
