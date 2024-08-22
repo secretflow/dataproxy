@@ -14,6 +14,10 @@
 
 version: 2.1
 
+orbs:
+  path-filtering: circleci/path-filtering@1.1.0
+  continuation: circleci/continuation@1.0.0
+
 parameters:
   GHA_Actor:
     type: string
