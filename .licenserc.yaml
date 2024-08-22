@@ -49,6 +49,7 @@ header: # <1>
     - '**/*.po'
     - '**/*.svg'
     - '**/*.rst'
+    - '**/*.rst_t'
     - '**/*.lds'
     - '**/*.patch'
     - '**/*.mlir'
@@ -88,6 +89,6 @@ header: # <1>
         - ".cu"
       comment_style_id: DoubleSlash
     Java:
-       extensions:
+      extensions:
         - ".java"
       comment_style_id: SlashAsterisk
