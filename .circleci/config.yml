@@ -132,7 +132,7 @@ workflows:
           base-revision: main
           config-path: .circleci/continue-config.yml
           mapping: |
-            .circleci/continue-config.yml sdk-sdk-build-and-run true
+            .circleci/continue-config.yml sdk-build-and-run true
             dataproxy_sdk/.* sdk-build-and-run true
             .bazelrc sdk-build-and-run true
             WORKSPACE sdk-build-and-run true
