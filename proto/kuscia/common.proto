@@ -28,7 +28,8 @@ message RequestHeader {
 }
 
 // Status carries the response status information.
-// Reference: https://github.com/grpc/grpc/blob/master/src/proto/grpc/status/status.proto
+// Reference:
+// https://github.com/grpc/grpc/blob/master/src/proto/grpc/status/status.proto
 message Status {
   // The status code, which should be one of google rpc code or custom code.
   int32 code = 1;
@@ -40,7 +41,7 @@ message Status {
 
 message Partition {
   // enum path, odps
-  string   type = 1;
+  string type = 1;
   repeated DataColumn fields = 2;
 }
 
