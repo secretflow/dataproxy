@@ -96,8 +96,8 @@ workflows:
   unittest:
     when: << pipeline.parameters.sdk-build-and-run >>
     jobs:
-      - linux_ut:
+      - sdk_linux_ut:
           matrix:
             parameters:
               resource_class: ["xlarge", "arm.xlarge"]
-      - macOS_ut
+      - sdk_macOS_ut
