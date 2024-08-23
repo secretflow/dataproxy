@@ -114,6 +114,8 @@ jobs:
 
 workflows:
   build-deploy:
+    when:
+      equal: [ "release", << pipeline.parameters.GHA_Event >> ]
     jobs:
       - build-and-push:
           filters:
