@@ -119,8 +119,6 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-            branches:
-              ignore: /.*/
   unittest-workflow:
     when:
       and:
