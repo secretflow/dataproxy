@@ -196,7 +196,7 @@ public class OdpsDataWriter implements DataWriter {
      * @return value
      */
     private Object getValue(FieldVector fieldVector, int index) {
-        if (fieldVector == null || index < 0) {
+        if (fieldVector == null || index < 0 || fieldVector.getObject(index) == null) {
             return null;
         }
         ArrowType.ArrowTypeID arrowTypeID = fieldVector.getField().getType().getTypeID();
