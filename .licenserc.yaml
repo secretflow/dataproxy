@@ -60,6 +60,7 @@ header: # <1>
     - '**/*.xml'
     - 'LICENSE'
     - 'NOTICE'
+    - 'Makefile'
     - '.bazelversion'
     - '.clang-format'
     - '.clang-tidy'
@@ -68,6 +69,7 @@ header: # <1>
     - '.gitmodules'
     - 'pyproject.toml'
     - 'setup.cfg'
+    - 'dataproxy-manager/src/main/java/org/secretflow/dataproxy/manager/connector/rdbms/adaptor'
 
   comment: never # <9>
 
