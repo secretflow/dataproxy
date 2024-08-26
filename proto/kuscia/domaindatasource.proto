@@ -22,13 +22,17 @@ option go_package = "github.com/secretflow/kuscia/proto/api/v1alpha1/datamesh";
 option java_package = "org.secretflow.v1alpha1.kusciaapi";
 
 service DomainDataSourceService {
-  rpc CreateDomainDataSource(CreateDomainDataSourceRequest) returns (CreateDomainDataSourceResponse);
+  rpc CreateDomainDataSource(CreateDomainDataSourceRequest)
+      returns (CreateDomainDataSourceResponse);
 
-  rpc QueryDomainDataSource(QueryDomainDataSourceRequest) returns (QueryDomainDataSourceResponse);
+  rpc QueryDomainDataSource(QueryDomainDataSourceRequest)
+      returns (QueryDomainDataSourceResponse);
 
-  rpc UpdateDomainDataSource(UpdateDomainDataSourceRequest) returns (UpdateDomainDataSourceResponse);
+  rpc UpdateDomainDataSource(UpdateDomainDataSourceRequest)
+      returns (UpdateDomainDataSourceResponse);
 
-  rpc DeleteDomainDataSource(DeleteDomainDataSourceRequest) returns (DeleteDomainDataSourceResponse);
+  rpc DeleteDomainDataSource(DeleteDomainDataSourceRequest)
+      returns (DeleteDomainDataSourceResponse);
 }
 
 message CreateDomainDataSourceRequest {
@@ -77,7 +81,7 @@ message QueryDomainDataSourceRequest {
 }
 
 message QueryDomainDataSourceResponse {
-  Status   status = 1;
+  Status status = 1;
   DomainDataSource data = 2;
 }
 
@@ -128,7 +132,7 @@ message OssDataSourceInfo {
   // access secret
   string access_key_secret = 5;
   // virtualhost is the same as AliyunOSS's virtualhost , default true
-  bool   virtualhost = 6;
+  bool virtualhost = 6;
   // optional enum[s3v2,s3v4]
   string version = 7;
   // optional enum[oss,minio] , default oss

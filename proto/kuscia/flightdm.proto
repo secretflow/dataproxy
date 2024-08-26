@@ -30,7 +30,7 @@ message CSVWriteOptions {
 }
 
 // write options varies by file format
-message  FileWriteOptions {
+message FileWriteOptions {
   oneof Options {
     CSVWriteOptions csv_options = 1;
   }
@@ -38,8 +38,9 @@ message  FileWriteOptions {
 
 // ContentFormat describe the schema of ArrowRecordBatch response from DataProxy
 // Only for Table Type, the schema is defined by DomainData's columns
-// And for rest types, the schema is a dummy schema which only contains one column of arrow::Binary type
-enum ContentType{
+// And for rest types, the schema is a dummy schema which only contains one
+// column of arrow::Binary type
+enum ContentType {
   Table = 0;
   // read raw data from datasource
   RAW = 1;
@@ -47,7 +48,8 @@ enum ContentType{
   CSV = 2;
 }
 
-// call with GetSchema, return SchemaResult, extension attributes are set with metadata
+// call with GetSchema, return SchemaResult, extension attributes are set with
+// metadata
 message CommandGetDomainDataSchema {
   string domaindata_id = 1;
 }
@@ -64,8 +66,8 @@ message CommandDomainDataQuery {
   string partition_spec = 5;
 }
 
-// call GetFlightInfo with CommandDomainDataUpdate, return TicketDomainDataQuery which is an update query
-// and then call DoPut with TicketDomainDataQuery
+// call GetFlightInfo with CommandDomainDataUpdate, return TicketDomainDataQuery
+// which is an update query and then call DoPut with TicketDomainDataQuery
 message CommandDomainDataUpdate {
   string domaindata_id = 1;
   // create an nonexistent domaindata and get a update ticket
@@ -84,7 +86,8 @@ message TicketDomainDataQuery {
   string domaindata_handle = 1;
 }
 
-// call DoAction with ActionCreateDomainDataRequest, return ActionCreateDomainDataResponse
+// call DoAction with ActionCreateDomainDataRequest, return
+// ActionCreateDomainDataResponse
 message ActionCreateDomainDataRequest {
   CreateDomainDataRequest request = 1;
 }
@@ -93,7 +96,8 @@ message ActionCreateDomainDataResponse {
   CreateDomainDataResponse response = 1;
 }
 
-// call DoAction with ActionQueryDomainDataRequest, return ActionQueryDomainDataResponse
+// call DoAction with ActionQueryDomainDataRequest, return
+// ActionQueryDomainDataResponse
 message ActionQueryDomainDataRequest {
   QueryDomainDataRequest request = 1;
 }
@@ -102,7 +106,8 @@ message ActionQueryDomainDataResponse {
   QueryDomainDataResponse response = 1;
 }
 
-// call DoAction with ActionUpdateDomainDataRequest, return ActionUpdateDomainDataResponse
+// call DoAction with ActionUpdateDomainDataRequest, return
+// ActionUpdateDomainDataResponse
 message ActionUpdateDomainDataRequest {
   UpdateDomainDataRequest request = 1;
 }
@@ -111,7 +116,8 @@ message ActionUpdateDomainDataResponse {
   UpdateDomainDataResponse response = 1;
 }
 
-// call DoAction with ActionDeleteDomainDataRequest, return ActionDeleteDomainDataResponse
+// call DoAction with ActionDeleteDomainDataRequest, return
+// ActionDeleteDomainDataResponse
 message ActionDeleteDomainDataRequest {
   DeleteDomainDataRequest request = 1;
   // not supported now
@@ -122,7 +128,8 @@ message ActionDeleteDomainDataResponse {
   DeleteDomainDataResponse response = 1;
 }
 
-// call DoAction with ActionCreateDomainDataSourceRequest, return ActionCreateDomainDataSourceResponse
+// call DoAction with ActionCreateDomainDataSourceRequest, return
+// ActionCreateDomainDataSourceResponse
 message ActionCreateDomainDataSourceRequest {
   CreateDomainDataSourceRequest request = 1;
 }
