@@ -18,36 +18,41 @@
 #include <unordered_map>
 
 #include "arrow/type.h"
+#include "arrow/util/type_fwd.h"
+
 #include "dataproxy_sdk/cc/data_proxy_pb.h"
 
 namespace dataproxy_sdk {
 
-class FileHelpBase {
+class FileHelpWrite {
  public:
-  FileHelpBase() = default;
-  virtual ~FileHelpBase() = default;
+  struct Options {
+    // only orc use by sf
+    arrow::Compression::type compression = arrow::Compression::ZSTD;
+    // only orc use by sf
+    int64_t compression_block_size = 256 * 1024;
+    // only orc use by sf
+    int64_t stripe_size = 64 * 1024 * 1024;
 
- public:
-  virtual void DoClose() = 0;
+    static Options Defaults();
+  };
 
- protected:
-  virtual void DoOpen(const std::string& file_name) = 0;
-};
-
-class FileHelpWrite : public FileHelpBase {
  public:
   static std::unique_ptr<FileHelpWrite> Make(proto::FileFormat file_format,
-                                             const std::string& file_name);
+                                             const std::string& file_name,
+                                             const Options& options);
 
  public:
   FileHelpWrite() = default;
   virtual ~FileHelpWrite() = default;
 
  public:
+  virtual void DoOpen(const std::string& file_name, const Options& options) = 0;
+  virtual void DoClose() = 0;
   virtual void DoWrite(std::shared_ptr<arrow::RecordBatch>& record_batch) = 0;
 };
 
-class FileHelpRead : public FileHelpBase {
+class FileHelpRead {
  public:
   struct Options {
     std::unordered_map<std::string, std::shared_ptr<arrow::DataType>>
@@ -60,18 +65,16 @@ class FileHelpRead : public FileHelpBase {
   static std::unique_ptr<FileHelpRead> Make(proto::FileFormat file_format,
                                             const std::string& file_name,
                                             const Options& options);
-  static std::unique_ptr<FileHelpRead> Make(proto::FileFormat file_format,
-                                            const std::string& file_name) {
-    return Make(file_format, file_name, Options::Defaults());
-  }
 
  public:
-  explicit FileHelpRead(const Options& options){};
+  FileHelpRead() = default;
   virtual ~FileHelpRead() = default;
 
  public:
-  virtual std::shared_ptr<arrow::Schema> Schema() = 0;
+  virtual void DoOpen(const std::string& file_name, const Options& options) = 0;
+  virtual void DoClose() = 0;
   virtual void DoRead(std::shared_ptr<arrow::RecordBatch>* record_batch) = 0;
+  virtual std::shared_ptr<arrow::Schema> Schema() = 0;
 };
 
 }  // namespace dataproxy_sdk

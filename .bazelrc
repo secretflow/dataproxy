@@ -13,7 +13,7 @@
 # limitations under the License.
 
 common --experimental_repo_remote_exec
-common --experimental_remote_download_regex='.*\/dataproxy_sdk$|.*\/arrow$'
+common --modify_execution_info=CppLink=+no-remote-cache
 
 
 build --incompatible_new_actions_api=false

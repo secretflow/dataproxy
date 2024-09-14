@@ -14,37 +14,10 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-
 #include "dataproxy_sdk/cc/data_proxy_pb.h"
 
 namespace dataproxy_sdk {
 
-class DataProxyFile {
- public:
-  static std::unique_ptr<DataProxyFile> Make(
-      const proto::DataProxyConfig& config);
-
-  static std::unique_ptr<DataProxyFile> Make();
-
- public:
-  DataProxyFile();
-  ~DataProxyFile();
-
- public:
-  void DownloadFile(const proto::DownloadInfo& info,
-                    const std::string& file_path,
-                    proto::FileFormat file_format);
-
-  void UploadFile(proto::UploadInfo& info, const std::string& file_path,
-                  proto::FileFormat file_format);
-
-  void Close();
-
- private:
-  class Impl;
-  std::unique_ptr<Impl> impl_;
-};
+proto::FileFormat GetFileFormat(const std::string& file);
 
 }  // namespace dataproxy_sdk

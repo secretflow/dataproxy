@@ -68,17 +68,6 @@ dataproxy_cc_library(
     ],
 )
 
-dataproxy_cc_test(
-    name = "file_help_test",
-    srcs = ["file_help_test.cc"],
-    deps = [
-        "utils",
-        ":exception",
-        ":file_help",
-        "@org_apache_arrow//:arrow",
-    ],
-)
-
 dataproxy_cc_library(
     name = "data_proxy_conn",
     srcs = ["data_proxy_conn.cc"],
@@ -100,5 +89,44 @@ dataproxy_cc_library(
         ":proto",
         ":utils",
         "@org_apache_arrow//:arrow_flight",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "file_help_test",
+    srcs = ["file_help_test.cc"],
+    deps = [
+        ":file_help",
+        "//dataproxy_sdk/test:random",
+        "//dataproxy_sdk/test:test_utils",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "data_proxy_conn_test",
+    srcs = ["data_proxy_conn_test.cc"],
+    deps = [
+        ":data_proxy_conn",
+        "//dataproxy_sdk/test:data_mesh_mock",
+        "//dataproxy_sdk/test:random",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "data_proxy_file_test",
+    srcs = ["data_proxy_file_test.cc"],
+    deps = [
+        ":data_proxy_file",
+        "//dataproxy_sdk/test:data_mesh_mock",
+        "//dataproxy_sdk/test:random",
+        "//dataproxy_sdk/test:test_utils",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "data_proxy_pb_test",
+    srcs = ["data_proxy_pb_test.cc"],
+    deps = [
+        ":proto",
     ],
 )

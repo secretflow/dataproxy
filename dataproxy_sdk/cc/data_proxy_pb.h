@@ -44,4 +44,6 @@ proto::CreateDomainDataResponse GetActionCreateDomainDataResponse(
 
 void CheckUploadInfo(const proto::UploadInfo& info);
 
+void GetDPConfigValueFromEnv(proto::DataProxyConfig* config);
+
 }  // namespace dataproxy_sdk

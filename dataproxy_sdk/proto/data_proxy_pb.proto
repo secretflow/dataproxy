@@ -46,10 +46,33 @@ message DataProxyConfig {
   TlSConfig tls_config = 2;
 }
 
+message ORCFileInfo {
+  enum CompressionType {
+    UNCOMPRESSED = 0;
+    SNAPPY = 1;
+    GZIP = 2;
+    BROTLI = 3;
+    ZSTD = 4;
+    LZ4 = 5;
+    LZ4_FRAME = 6;
+    LZO = 7;
+    BZ2 = 8;
+    LZ4_HADOOP = 9;
+  }
+
+  CompressionType compression = 1;
+  int64 compression_block_size = 2;
+  int64 stripe_size = 3;
+}
+
 message DownloadInfo {
   string domaindata_id = 1;
   // specific the partition column and value, such as "dmdt=20240520"
   string partition_spec = 2;
+
+  oneof file_info {
+    ORCFileInfo orc_info = 10;
+  }
 }
 
 message UploadInfo {

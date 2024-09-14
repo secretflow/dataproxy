@@ -48,6 +48,7 @@ class DoPutResultWrapper {
 class FlightStreamReaderWrapper {
  public:
   std::shared_ptr<arrow::RecordBatch> ReadRecordBatch();
+  std::shared_ptr<arrow::Schema> GetSchema();
 
  public:
   FlightStreamReaderWrapper(

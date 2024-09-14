@@ -67,6 +67,8 @@ public class OdpsDataWriter implements DataWriter {
 
     private final boolean overwrite = true;
 
+    private boolean isTemporarilyCreatedTable = false;
+
     private TableTunnel.UploadSession uploadSession = null;
     private RecordWriter recordWriter = null;
 
@@ -147,9 +149,9 @@ public class OdpsDataWriter implements DataWriter {
         Odps odps = initOdpsClient(this.connConfig);
         // Pre-processing
         preProcessing(odps, connConfig.getProjectName(), tableInfo.tableName());
-        // init download session
+        // init upload session
         TableTunnel tunnel = new TableTunnel(odps);
-        if (tableInfo.partitionSpec() != null && !tableInfo.partitionSpec().isEmpty()) {
+        if (tableInfo.partitionSpec() != null && !tableInfo.partitionSpec().isEmpty() && !isTemporarilyCreatedTable) {
             PartitionSpec partitionSpec = new PartitionSpec(tableInfo.partitionSpec());
             uploadSession = tunnel.createUploadSession(connConfig.getProjectName(), tableInfo.tableName(), partitionSpec, overwrite);
         } else {
@@ -244,6 +246,7 @@ public class OdpsDataWriter implements DataWriter {
             if (!odpsTable) {
                 throw DataproxyException.of(DataproxyErrorCode.ODPS_CREATE_TABLE_FAILED);
             }
+            isTemporarilyCreatedTable = true;
         }
         log.info("odps table is exists or create table successful, project: {}, table name: {}", projectName, tableName);
     }

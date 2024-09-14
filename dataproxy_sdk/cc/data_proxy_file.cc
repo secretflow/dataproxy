@@ -19,11 +19,13 @@
 
 #include "arrow/buffer.h"
 #include "arrow/flight/api.h"
+#include "arrow/util/byte_size.h"
+#include "spdlog/spdlog.h"
+
 #include "dataproxy_sdk/cc/data_proxy_conn.h"
 #include "dataproxy_sdk/cc/exception.h"
 #include "dataproxy_sdk/cc/file_help.h"
 #include "dataproxy_sdk/cc/utils.h"
-#include "spdlog/spdlog.h"
 
 namespace dataproxy_sdk {
 
@@ -45,6 +47,17 @@ class DataProxyFile::Impl {
                                       config.has_tls_config(), options);
   }
 
+  FileHelpWrite::Options BuildWriteOptions(const proto::DownloadInfo &info) {
+    FileHelpWrite::Options options = FileHelpWrite::Options::Defaults();
+    if (info.has_orc_info()) {
+      options.compression =
+          static_cast<arrow::Compression::type>(info.orc_info().compression());
+      options.compression_block_size = info.orc_info().compression_block_size();
+      options.stripe_size = info.orc_info().stripe_size();
+    }
+    return options;
+  }
+
   void DownloadFile(const proto::DownloadInfo &info,
                     const std::string &file_path,
                     proto::FileFormat file_format) {
@@ -57,8 +70,15 @@ class DataProxyFile::Impl {
     auto stream_reader = dp_conn_->DoGet(descriptor);
     // 4. 从读取流下载数据
 
+    auto write_options = BuildWriteOptions(info);
     std::unique_ptr<FileHelpWrite> file_write =
-        FileHelpWrite::Make(file_format, file_path);
+        FileHelpWrite::Make(file_format, file_path, write_options);
+    // 当没有数据传输时，需要生成具有schema信息的文件
+    std::shared_ptr<arrow::RecordBatch> empty_batch;
+    ASSIGN_ARROW_OR_THROW(
+        empty_batch, arrow::RecordBatch::MakeEmpty(stream_reader->GetSchema()));
+    file_write->DoWrite(empty_batch);
+
     while (true) {
       auto record_batch = stream_reader->ReadRecordBatch();
       if (record_batch == nullptr) {
@@ -93,6 +113,12 @@ class DataProxyFile::Impl {
 
     auto put_result = dp_conn_->DoPut(descriptor, file_read->Schema());
 
+    static const int64_t kMaxBatchSize = 64 * 1024 * 1024;
+    int64_t slice_size = 0;
+    int64_t slice_len = 0;
+    int64_t slice_offset = 0;
+    int64_t slice_left = 0;
+    int64_t batch_size = 0;
     // 5. 向写入流写入文件数据
     while (true) {
       std::shared_ptr<arrow::RecordBatch> batch;
@@ -100,7 +126,21 @@ class DataProxyFile::Impl {
       if (batch.get() == nullptr) {
         break;
       }
-      put_result->WriteRecordBatch(*batch);
+
+      ASSIGN_DP_OR_THROW(batch_size, arrow::util::ReferencedBufferSize(*batch));
+      if (batch_size > kMaxBatchSize) {
+        slice_size = (batch_size + kMaxBatchSize - 1) / kMaxBatchSize;
+        slice_left = batch->num_rows();
+        slice_len = (slice_left + slice_size - 1) / slice_size;
+        while (slice_left > 0) {
+          put_result->WriteRecordBatch(
+              *(batch->Slice(slice_offset, std::min(slice_len, slice_left))));
+          slice_offset += slice_len;
+          slice_left -= slice_len;
+        }
+      } else {
+        put_result->WriteRecordBatch(*batch);
+      }
     }
 
     put_result->Close();
@@ -160,9 +200,18 @@ class DataProxyFile::Impl {
 
 std::unique_ptr<DataProxyFile> DataProxyFile::Make(
     const proto::DataProxyConfig &config) {
+  proto::DataProxyConfig dp_config;
+  dp_config.CopyFrom(config);
+  GetDPConfigValueFromEnv(&dp_config);
+
   std::unique_ptr<DataProxyFile> ret = std::make_unique<DataProxyFile>();
-  ret->impl_->Init(config);
+  ret->impl_->Init(dp_config);
   return ret;
+}
+
+std::unique_ptr<DataProxyFile> DataProxyFile::Make() {
+  proto::DataProxyConfig config;
+  return DataProxyFile::Make(config);
 }
 
 DataProxyFile::DataProxyFile() {
