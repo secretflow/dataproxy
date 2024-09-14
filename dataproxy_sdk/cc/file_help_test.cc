@@ -15,118 +15,26 @@
 #include "dataproxy_sdk/cc/file_help.h"
 
 #include <iostream>
-#include <random>
-#include <set>
-#include <string>
-#include <vector>
 
-#include "arrow/adapters/orc/adapter.h"
 #include "arrow/builder.h"
-#include "arrow/csv/api.h"
-#include "arrow/io/api.h"
-#include "dataproxy_sdk/cc/exception.h"
 #include "gtest/gtest.h"
 
+#include "dataproxy_sdk/cc/exception.h"
+#include "dataproxy_sdk/test/random.h"
+#include "dataproxy_sdk/test/test_utils.h"
+
 namespace dataproxy_sdk {
-
-class RandomBatchGenerator {
- public:
-  std::shared_ptr<arrow::Schema> schema;
-  RandomBatchGenerator(std::shared_ptr<arrow::Schema> schema)
-      : schema(schema){};
-
-  static std::shared_ptr<arrow::RecordBatch> Generate(
-      std::shared_ptr<arrow::Schema> schema, int32_t num_rows) {
-    RandomBatchGenerator generator(schema);
-
-    std::shared_ptr<arrow::RecordBatch> batch;
-    ASSIGN_ARROW_OR_THROW(batch, generator.Generate(num_rows));
-    return batch;
-  }
-
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> Generate(
-      int32_t num_rows) {
-    num_rows_ = num_rows;
-    for (std::shared_ptr<arrow::Field> field : schema->fields()) {
-      ARROW_RETURN_NOT_OK(arrow::VisitTypeInline(*field->type(), this));
-    }
-    return arrow::RecordBatch::Make(schema, num_rows, arrays_);
-  }
-
-  // Default implementation
-  arrow::Status Visit(const arrow::DataType &type) {
-    return arrow::Status::NotImplemented("Generating data for",
-                                         type.ToString());
-  }
-
-  arrow::Status Visit(const arrow::BinaryType &) {
-    auto builder = arrow::BinaryBuilder();
-    // std::normal_distribution<> d{
-    //     /*mean=*/0x05,
-    // };  // 正态分布
-    for (int32_t i = 0; i < num_rows_; ++i) {
-      ARROW_RETURN_NOT_OK(builder.Append("03", 2));
-    }
-
-    ARROW_ASSIGN_OR_RAISE(auto array, builder.Finish());
-    arrays_.push_back(array);
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Visit(const arrow::DoubleType &) {
-    auto builder = arrow::DoubleBuilder();
-    std::normal_distribution<> d{/*mean=*/5.0, /*stddev=*/2.0};  // 正态分布
-    for (int32_t i = 0; i < num_rows_; ++i) {
-      ARROW_RETURN_NOT_OK(builder.Append(d(gen_)));
-    }
-
-    ARROW_ASSIGN_OR_RAISE(auto array, builder.Finish());
-    arrays_.push_back(array);
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Visit(const arrow::Int64Type &) {
-    // Generate offsets first, which determines number of values in sub-array
-    std::poisson_distribution<> d{
-        /*mean=*/4};  // 产生随机非负整数值i，按离散概率函数分布
-    auto builder = arrow::Int64Builder();
-    for (int32_t i = 0; i < num_rows_; ++i) {
-      ARROW_RETURN_NOT_OK(builder.Append(d(gen_)));
-    }
-
-    ARROW_ASSIGN_OR_RAISE(auto array, builder.Finish());
-    arrays_.push_back(array);
-    return arrow::Status::OK();
-  }
-
- protected:
-  std::random_device rd_{};
-  std::mt19937 gen_{rd_()};  // 随机种子
-  std::vector<std::shared_ptr<arrow::Array>> arrays_;
-  int32_t num_rows_;
-
-};  // RandomBatchGenerator
-
-proto::FileFormat GetFormat(const std::string &file) {
-  if (file.find(".csv") != std::string::npos)
-    return proto::FileFormat::CSV;
-  else if (file.find(".orc") != std::string::npos)
-    return proto::FileFormat::ORC;
-
-  return proto::FileFormat::BINARY;
-}
-
-static std::shared_ptr<arrow::RecordBatch> GetRecordBatch(int data_num = 2) {
-  static std::shared_ptr<arrow::Schema> gSchema = arrow::schema(
-      {arrow::field("x", arrow::int64()), arrow::field("y", arrow::int64()),
-       arrow::field("z", arrow::int64())});
-
-  return RandomBatchGenerator::Generate(gSchema, data_num);
-}
 
 const std::string kCSVFilePath = "test.csv";
 const std::string kORCFilePath = "test.orc";
 const std::string kBianryFilePath = "test.txt";
+
+template <typename T>
+std::unique_ptr<T> GetDefaultFileHelp(const std::string &file_path) {
+  auto options = T::Options::Defaults();
+  auto ret = T::Make(GetFileFormat(file_path), file_path, options);
+  return ret;
+}
 
 TEST(FileHelpTest, Binary) {
   std::shared_ptr<arrow::Schema> schema =
@@ -134,13 +42,12 @@ TEST(FileHelpTest, Binary) {
 
   std::shared_ptr<arrow::RecordBatch> batch =
       RandomBatchGenerator::Generate(schema, 1);
-  auto writer =
-      FileHelpWrite::Make(GetFormat(kBianryFilePath), kBianryFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kBianryFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  auto reader = FileHelpRead::Make(GetFormat(kBianryFilePath), kBianryFilePath);
+  auto reader = GetDefaultFileHelp<FileHelpRead>(kBianryFilePath);
   reader->DoRead(&read_batch);
   reader->DoClose();
 
@@ -163,13 +70,12 @@ TEST(FileHelpTest, ZeroBinary) {
 
   std::shared_ptr<arrow::RecordBatch> batch =
       arrow::RecordBatch::Make(schema, arrays.size(), arrays);
-  auto writer =
-      FileHelpWrite::Make(GetFormat(kBianryFilePath), kBianryFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kBianryFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  auto reader = FileHelpRead::Make(GetFormat(kBianryFilePath), kBianryFilePath);
+  auto reader = GetDefaultFileHelp<FileHelpRead>(kBianryFilePath);
   reader->DoRead(&read_batch);
   reader->DoClose();
 
@@ -180,14 +86,15 @@ TEST(FileHelpTest, ZeroBinary) {
 }
 
 TEST(FileHelpTest, CSV) {
-  std::shared_ptr<arrow::RecordBatch> batch = GetRecordBatch();
+  std::shared_ptr<arrow::RecordBatch> batch =
+      RandomBatchGenerator::ExampleGenerate();
 
-  auto writer = FileHelpWrite::Make(GetFormat(kCSVFilePath), kCSVFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kCSVFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  auto reader = FileHelpRead::Make(GetFormat(kCSVFilePath), kCSVFilePath);
+  auto reader = GetDefaultFileHelp<FileHelpRead>(kCSVFilePath);
   reader->DoRead(&read_batch);
   reader->DoClose();
 
@@ -198,14 +105,15 @@ TEST(FileHelpTest, CSV) {
 }
 
 TEST(FileHelpTest, ORC) {
-  std::shared_ptr<arrow::RecordBatch> batch = GetRecordBatch();
+  std::shared_ptr<arrow::RecordBatch> batch =
+      RandomBatchGenerator::ExampleGenerate();
 
-  auto writer = FileHelpWrite::Make(GetFormat(kORCFilePath), kORCFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kORCFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  auto reader = FileHelpRead::Make(GetFormat(kORCFilePath), kORCFilePath);
+  auto reader = GetDefaultFileHelp<FileHelpRead>(kORCFilePath);
   reader->DoRead(&read_batch);
   reader->DoClose();
 
@@ -227,14 +135,15 @@ std::vector<int> GetSelectColumns() {
 }
 
 TEST(FileHelpTestWithOption, CSV) {
-  std::shared_ptr<arrow::RecordBatch> batch = GetRecordBatch();
+  std::shared_ptr<arrow::RecordBatch> batch =
+      RandomBatchGenerator::ExampleGenerate();
 
-  auto writer = FileHelpWrite::Make(GetFormat(kCSVFilePath), kCSVFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kCSVFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  auto reader = FileHelpRead::Make(GetFormat(kCSVFilePath), kCSVFilePath,
+  auto reader = FileHelpRead::Make(GetFileFormat(kCSVFilePath), kCSVFilePath,
                                    GetReadOptions());
   reader->DoRead(&read_batch);
   reader->DoClose();
@@ -247,14 +156,15 @@ TEST(FileHelpTestWithOption, CSV) {
 }
 
 TEST(FileHelpTestWithOption, ORC) {
-  std::shared_ptr<arrow::RecordBatch> batch = GetRecordBatch();
+  std::shared_ptr<arrow::RecordBatch> batch =
+      RandomBatchGenerator::ExampleGenerate();
 
-  auto writer = FileHelpWrite::Make(GetFormat(kORCFilePath), kORCFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kORCFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  auto reader = FileHelpRead::Make(GetFormat(kORCFilePath), kORCFilePath,
+  auto reader = FileHelpRead::Make(GetFileFormat(kORCFilePath), kORCFilePath,
                                    GetReadOptions());
   reader->DoRead(&read_batch);
   reader->DoClose();
@@ -273,27 +183,27 @@ FileHelpRead::Options GetErrorOptions() {
 }
 
 TEST(FileHelpTestWithOption, ErrorCSV) {
-  std::shared_ptr<arrow::RecordBatch> batch = GetRecordBatch();
+  auto batch = RandomBatchGenerator::ExampleGenerate();
 
-  auto writer = FileHelpWrite::Make(GetFormat(kCSVFilePath), kCSVFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kCSVFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  EXPECT_THROW(FileHelpRead::Make(GetFormat(kCSVFilePath), kCSVFilePath,
+  EXPECT_THROW(FileHelpRead::Make(GetFileFormat(kCSVFilePath), kCSVFilePath,
                                   GetErrorOptions()),
                yacl::Exception);
 }
 
 TEST(FileHelpTestWithOption, ErrorORC) {
-  std::shared_ptr<arrow::RecordBatch> batch = GetRecordBatch();
+  auto batch = RandomBatchGenerator::ExampleGenerate();
 
-  auto writer = FileHelpWrite::Make(GetFormat(kORCFilePath), kORCFilePath);
+  auto writer = GetDefaultFileHelp<FileHelpWrite>(kORCFilePath);
   writer->DoWrite(batch);
   writer->DoClose();
 
   std::shared_ptr<arrow::RecordBatch> read_batch;
-  auto reader = FileHelpRead::Make(GetFormat(kORCFilePath), kORCFilePath,
+  auto reader = FileHelpRead::Make(GetFileFormat(kORCFilePath), kORCFilePath,
                                    GetErrorOptions());
   EXPECT_THROW(reader->DoRead(&read_batch), yacl::Exception);
 }

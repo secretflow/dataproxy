@@ -20,14 +20,19 @@
 #include "arrow/builder.h"
 #include "arrow/csv/api.h"
 #include "arrow/io/api.h"
+#include "arrow/ipc/writer.h"
+
 #include "dataproxy_sdk/cc/exception.h"
-#include "file_help.h"
 
 namespace dataproxy_sdk {
 
 class BinaryFileWrite : public FileHelpWrite {
  public:
   void DoWrite(std::shared_ptr<arrow::RecordBatch>& record_batch) {
+    if (record_batch->num_rows() == 0) {
+      return;
+    }
+
     DATAPROXY_ENFORCE_EQ(record_batch->num_columns(), 1);
 
     auto binary_array =
@@ -38,7 +43,8 @@ class BinaryFileWrite : public FileHelpWrite {
   void DoClose() { CHECK_ARROW_OR_THROW(out_stream_->Close()); }
 
  protected:
-  void DoOpen(const std::string& file_name) {
+  void DoOpen(const std::string& file_name,
+              const FileHelpWrite::Options& options) {
     ASSIGN_ARROW_OR_THROW(out_stream_,
                           arrow::io::FileOutputStream::Open(file_name));
   }
@@ -50,20 +56,34 @@ class BinaryFileWrite : public FileHelpWrite {
 class CSVFileWrite : public FileHelpWrite {
  public:
   void DoWrite(std::shared_ptr<arrow::RecordBatch>& record_batch) {
-    CHECK_ARROW_OR_THROW(arrow::csv::WriteCSV(
-        *record_batch, arrow::csv::WriteOptions::Defaults(),
-        out_stream_.get()));
+    // 由于每次调用WriteCSV都会在文件中生成列信息，所以只在第一次写入时调用MakeCSVWriter
+    if (!writer_) {
+      ASSIGN_ARROW_OR_THROW(
+          writer_, arrow::csv::MakeCSVWriter(out_stream_,
+                                             record_batch->schema(), options_));
+    }
+    CHECK_ARROW_OR_THROW(writer_->WriteRecordBatch(*record_batch));
   }
-  void DoClose() { CHECK_ARROW_OR_THROW(out_stream_->Close()); }
+  void DoClose() {
+    if (writer_) {
+      CHECK_ARROW_OR_THROW(writer_->Close());
+    }
+    CHECK_ARROW_OR_THROW(out_stream_->Close());
+  }
 
  protected:
-  void DoOpen(const std::string& file_name) {
+  void DoOpen(const std::string& file_name,
+              const FileHelpWrite::Options& options) {
+    options_ = arrow::csv::WriteOptions::Defaults();
+    options_.quoting_style = arrow::csv::QuotingStyle::None;
     ASSIGN_ARROW_OR_THROW(out_stream_,
                           arrow::io::FileOutputStream::Open(file_name));
   }
 
  private:
   std::shared_ptr<arrow::io::FileOutputStream> out_stream_;
+  std::shared_ptr<arrow::ipc::RecordBatchWriter> writer_;
+  arrow::csv::WriteOptions options_;
 };
 
 class ORCFileWrite : public FileHelpWrite {
@@ -71,18 +91,25 @@ class ORCFileWrite : public FileHelpWrite {
   void DoWrite(std::shared_ptr<arrow::RecordBatch>& record_batch) {
     CHECK_ARROW_OR_THROW(orc_writer_->Write(*record_batch));
   }
+
   void DoClose() {
     CHECK_ARROW_OR_THROW(orc_writer_->Close());
     CHECK_ARROW_OR_THROW(out_stream_->Close());
   };
 
  protected:
-  void DoOpen(const std::string& file_name) {
+  void DoOpen(const std::string& file_name,
+              const FileHelpWrite::Options& options) {
     ASSIGN_ARROW_OR_THROW(out_stream_,
                           arrow::io::FileOutputStream::Open(file_name));
-    ASSIGN_ARROW_OR_THROW(
-        orc_writer_,
-        arrow::adapters::orc::ORCFileWriter::Open(out_stream_.get()));
+
+    arrow::adapters::orc::WriteOptions write_opts;
+    write_opts.compression = options.compression;
+    write_opts.compression_block_size = options.compression_block_size;
+    write_opts.stripe_size = options.stripe_size;
+    ASSIGN_ARROW_OR_THROW(orc_writer_,
+                          arrow::adapters::orc::ORCFileWriter::Open(
+                              out_stream_.get(), write_opts));
   }
 
  private:
@@ -91,7 +118,8 @@ class ORCFileWrite : public FileHelpWrite {
 };
 
 std::unique_ptr<FileHelpWrite> FileHelpWrite::Make(
-    proto::FileFormat file_format, const std::string& file_name) {
+    proto::FileFormat file_format, const std::string& file_name,
+    const FileHelpWrite::Options& options) {
   std::unique_ptr<FileHelpWrite> ret;
   switch (file_format) {
     case proto::FileFormat::CSV:
@@ -108,18 +136,18 @@ std::unique_ptr<FileHelpWrite> FileHelpWrite::Make(
                       proto::FileFormat_Name<proto::FileFormat>(file_format));
       break;
   }
-  ret->DoOpen(file_name);
+  ret->DoOpen(file_name, options);
   return ret;
 }
 
-class BinaryFileRead : public FileHelpRead {
- public:
-  BinaryFileRead(FileHelpRead::Options options) : FileHelpRead(options) {}
-  ~BinaryFileRead() = default;
+FileHelpWrite::Options FileHelpWrite::Options::Defaults() {
+  return FileHelpWrite::Options();
+}
 
+class BinaryFileRead : public FileHelpRead {
  private:
-  const int64_t kReadBytesLen = 128 * 1024;
-  const int64_t kchunksNum = 8;
+  static const int64_t kReadBytesLen = 128 * 1024;
+  static const int64_t kChunkNum = 8;
 
  public:
   static std::shared_ptr<arrow::Schema> kBinaryFileSchema;
@@ -127,7 +155,7 @@ class BinaryFileRead : public FileHelpRead {
  public:
   void DoRead(std::shared_ptr<arrow::RecordBatch>* record_batch) {
     arrow::BinaryBuilder binary_build;
-    for (int i = 0; i < kchunksNum; ++i) {
+    for (int i = 0; i < kChunkNum; ++i) {
       std::shared_ptr<arrow::Buffer> buffer;
       ASSIGN_ARROW_OR_THROW(buffer, read_stream_->Read(kReadBytesLen));
       CHECK_ARROW_OR_THROW(binary_build.Append(buffer->data(), buffer->size()));
@@ -145,7 +173,8 @@ class BinaryFileRead : public FileHelpRead {
   std::shared_ptr<arrow::Schema> Schema() { return kBinaryFileSchema; }
 
  protected:
-  void DoOpen(const std::string& file_name) {
+  void DoOpen(const std::string& file_name,
+              const FileHelpRead::Options& options) {
     std::shared_ptr<arrow::io::ReadableFile> file_stream;
     ASSIGN_ARROW_OR_THROW(file_stream,
                           arrow::io::ReadableFile::Open(file_name));
@@ -164,17 +193,6 @@ std::shared_ptr<arrow::Schema> BinaryFileRead::kBinaryFileSchema =
 
 class CSVFileRead : public FileHelpRead {
  public:
-  CSVFileRead(FileHelpRead::Options options)
-      : FileHelpRead(options),
-        convert_options_(arrow::csv::ConvertOptions::Defaults()) {
-    for (auto& pair : options.column_types) {
-      convert_options_.column_types.emplace(pair.first, pair.second);
-      convert_options_.include_columns.push_back(pair.first);
-    }
-  }
-  ~CSVFileRead() = default;
-
- public:
   void DoRead(std::shared_ptr<arrow::RecordBatch>* record_batch) {
     CHECK_ARROW_OR_THROW(file_reader_->ReadNext(record_batch));
   }
@@ -182,33 +200,31 @@ class CSVFileRead : public FileHelpRead {
   std::shared_ptr<arrow::Schema> Schema() { return file_reader_->schema(); }
 
  protected:
-  void DoOpen(const std::string& file_name) {
+  void DoOpen(const std::string& file_name,
+              const FileHelpRead::Options& options) {
     std::shared_ptr<arrow::io::ReadableFile> file_stream;
     ASSIGN_ARROW_OR_THROW(file_stream,
                           arrow::io::ReadableFile::Open(file_name));
+
+    arrow::csv::ConvertOptions convert_options =
+        arrow::csv::ConvertOptions::Defaults();
+    for (auto& pair : options.column_types) {
+      convert_options.column_types.emplace(pair.first, pair.second);
+      convert_options.include_columns.push_back(pair.first);
+    }
     ASSIGN_ARROW_OR_THROW(
         file_reader_,
         arrow::csv::StreamingReader::Make(
             arrow::io::default_io_context(), file_stream,
             arrow::csv::ReadOptions::Defaults(),
-            arrow::csv::ParseOptions::Defaults(), convert_options_));
+            arrow::csv::ParseOptions::Defaults(), convert_options));
   }
 
  private:
   std::shared_ptr<arrow::csv::StreamingReader> file_reader_;
-  arrow::csv::ConvertOptions convert_options_;
 };
 
 class ORCFileRead : public FileHelpRead {
- public:
-  ORCFileRead(FileHelpRead::Options options)
-      : FileHelpRead(options), current_stripe_(0) {
-    for (auto& pair : options.column_types) {
-      include_names_.push_back(pair.first);
-    }
-  }
-  ~ORCFileRead() = default;
-
  public:
   void DoRead(std::shared_ptr<arrow::RecordBatch>* record_batch) {
     if (current_stripe_ >= orc_reader_->NumberOfStripes()) return;
@@ -230,7 +246,12 @@ class ORCFileRead : public FileHelpRead {
   }
 
  protected:
-  void DoOpen(const std::string& file_name) {
+  void DoOpen(const std::string& file_name,
+              const FileHelpRead::Options& options) {
+    for (auto& pair : options.column_types) {
+      include_names_.push_back(pair.first);
+    }
+
     ASSIGN_ARROW_OR_THROW(file_stream_,
                           arrow::io::ReadableFile::Open(file_name));
     ASSIGN_ARROW_OR_THROW(orc_reader_,
@@ -239,7 +260,7 @@ class ORCFileRead : public FileHelpRead {
   }
 
  private:
-  int64_t current_stripe_;
+  int64_t current_stripe_ = 0;
   std::unique_ptr<arrow::adapters::orc::ORCFileReader> orc_reader_;
   std::shared_ptr<arrow::io::ReadableFile> file_stream_;
   std::vector<std::string> include_names_;
@@ -251,20 +272,20 @@ std::unique_ptr<FileHelpRead> FileHelpRead::Make(
   std::unique_ptr<FileHelpRead> ret;
   switch (file_format) {
     case proto::FileFormat::CSV:
-      ret = std::make_unique<CSVFileRead>(options);
+      ret = std::make_unique<CSVFileRead>();
       break;
     case proto::FileFormat::BINARY:
-      ret = std::make_unique<BinaryFileRead>(options);
+      ret = std::make_unique<BinaryFileRead>();
       break;
     case proto::FileFormat::ORC:
-      ret = std::make_unique<ORCFileRead>(options);
+      ret = std::make_unique<ORCFileRead>();
       break;
     default:
       DATAPROXY_THROW("format[{}] not support.",
                       proto::FileFormat_Name<proto::FileFormat>(file_format));
       break;
   }
-  ret->DoOpen(file_name);
+  ret->DoOpen(file_name, options);
   return ret;
 }
 

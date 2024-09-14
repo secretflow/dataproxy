@@ -24,7 +24,7 @@ inline proto::ContentType FormatToContentType(proto::FileFormat format) {
       return proto::ContentType::RAW;
     case proto::FileFormat::CSV:
     case proto::FileFormat::ORC:
-      return proto::ContentType::CSV;
+      return proto::ContentType::Table;
     default:
       DATAPROXY_THROW("do not support this type of format:{}",
                       proto::FileFormat_Name(format));
@@ -50,8 +50,7 @@ google::protobuf::Any BuildDownloadAny(const proto::DownloadInfo& info,
   google::protobuf::Any any;
   proto::CommandDomainDataQuery msg;
   msg.set_domaindata_id(info.domaindata_id());
-  //   需要更新kuscia版本
-  //   msg.set_partition_spec(info.partition_spec());
+  msg.set_partition_spec(info.partition_spec());
   msg.set_content_type(FormatToContentType(file_format));
 
   any.PackFrom(msg);
@@ -64,6 +63,11 @@ google::protobuf::Any BuildUploadAny(const proto::UploadInfo& info,
   proto::CommandDomainDataUpdate msg;
   msg.set_domaindata_id(info.domaindata_id());
   msg.set_content_type(FormatToContentType(file_format));
+  if (file_format != proto::FileFormat::BINARY) {
+    msg.mutable_file_write_options()
+        ->mutable_csv_options()
+        ->set_field_delimiter(",");
+  }
 
   any.PackFrom(msg);
   return any;
@@ -104,13 +108,39 @@ proto::CreateDomainDataResponse GetActionCreateDomainDataResponse(
 void CheckUploadInfo(const proto::UploadInfo& info) {
   // Enum: table,model,rule,report,unknown
   if (info.type() != "table" && info.type() != "model" &&
-      info.type() != "rule" && info.type() != "report") {
+      info.type() != "rule" && info.type() != "serving_model") {
     DATAPROXY_THROW("type[{}] not support in UploadInfo!", info.type());
   }
 
   if (info.type() == "table" && info.columns().empty()) {
     DATAPROXY_THROW(
         "when type is table, columns cannot be empty in UploadInfo!");
+  }
+}
+
+static inline char* GetEnvValue(std::string_view key) {
+  if (char* env_p = std::getenv(key.data())) {
+    if (strlen(env_p) != 0) {
+      return env_p;
+    }
+  }
+  return nullptr;
+}
+
+void GetDPConfigValueFromEnv(proto::DataProxyConfig* config) {
+  if (config == nullptr) return;
+
+  if (char* env_value = GetEnvValue("CLIENT_CERT_FILE")) {
+    config->mutable_tls_config()->set_certificate_path(env_value);
+  }
+  if (char* env_value = GetEnvValue("CLIENT_PRIVATE_KEY_FILE")) {
+    config->mutable_tls_config()->set_private_key_path(env_value);
+  }
+  if (char* env_value = GetEnvValue("TRUSTED_CA_FILE")) {
+    config->mutable_tls_config()->set_ca_file_path(env_value);
+  }
+  if (char* env_value = GetEnvValue("KUSCIA_DATA_MESH_ADDR")) {
+    config->set_data_proxy_addr(env_value);
   }
 }
 

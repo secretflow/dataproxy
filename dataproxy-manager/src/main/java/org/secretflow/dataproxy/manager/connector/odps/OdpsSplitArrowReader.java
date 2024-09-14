@@ -22,7 +22,6 @@ import com.aliyun.odps.TableSchema;
 import com.aliyun.odps.data.Record;
 import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.task.SQLTask;
-import com.aliyun.odps.utils.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -44,12 +43,7 @@ import org.secretflow.dataproxy.common.model.datasource.location.OdpsTableInfo;
 import org.secretflow.dataproxy.manager.SplitReader;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -155,147 +149,16 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
         return this;
     }
 
-    private String buildSql(String tableName, List<String> fields, String partition) {
+    private String buildSql(String tableName, List<String> fields, String whereClause) {
 
         if (!columnOrValuePattern.matcher(tableName).matches()) {
             throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid tableName:" + tableName);
         }
 
-        String transformedPartition = buildWhereClause(partition);
-        return "select " + String.join(",", fields) + " from " + tableName + (transformedPartition.isEmpty() ? "" : " where " + transformedPartition) + ";";
+        return "select " + String.join(",", fields) + " from " + tableName + (whereClause.isEmpty() ? "" : " where " + whereClause) + ";";
     }
 
-    /**
-     * 过时方法，后续删除
-     *
-     * @param partition 分区字段
-     * @return boolean
-     */
-    @Deprecated
-    private String transformPartition(String partition) {
-
-        Map<String, List<String>> fieldValuesMap = new HashMap<>();
-
-        if (partition != null) {
-            String[] split = StringUtils.split(partition, ';');
-            for (String s : split) {
-                String[] kv = StringUtils.split(s, '=');
-                if (kv.length != 2 || kv[0].isEmpty() || kv[1].isEmpty()) {
-                    throw DataproxyException.of(DataproxyErrorCode.INVALID_PARTITION_SPEC);
-                }
-                if (fieldValuesMap.containsKey(kv[0])) {
-                    fieldValuesMap.get(kv[0]).add(kv[1]);
-                } else {
-                    fieldValuesMap.put(kv[0], new ArrayList<>(List.of(kv[1])));
-                }
-            }
-        }
-
-        return buildEqualClause(fieldValuesMap).toString();
-    }
-
-    /**
-     * 构造转换等于号多值条件至 "in" 条件，单值保留为 "=" 条件 <br>
-     *
-     * @param fieldValuesMap 字段值
-     * @return where clause string
-     */
-    private StringBuilder buildEqualClause(Map<String, List<String>> fieldValuesMap) {
-        StringBuilder sb = new StringBuilder();
-        if (!fieldValuesMap.isEmpty()) {
-
-            boolean first = true;
-            for (Map.Entry<String, List<String>> entry : fieldValuesMap.entrySet()) {
-                if (!first) {
-                    sb.append(" and ");
-                }
-                first = false;
-                sb.append(entry.getKey());
-                List<String> values = entry.getValue();
-                if (values.size() > 1) {
-                    sb.append(" in (");
-                    for (String value : values) {
-                        sb.append("'").append(value).append("'").append(", ");
-                    }
-                    sb.setLength(sb.length() - 2);
-                    sb.append(")");
-                } else {
-                    sb.append(" = ").append("'").append(values.get(0)).append("'");
-                }
-            }
-        }
-
-        return sb;
-    }
-
-    /**
-     * TODO: 对于通过 JDBC 操作的方式，可以把这块逻辑抽出来
-     *
-     * @param conditionString 条件字段
-     * @return where clause
-     */
-    private String buildWhereClause(String conditionString) {
-
-        if (conditionString == null || conditionString.isEmpty()) {
-            return "";
-        }
-
-        String[] conditions = conditionString.split(";");
-
-        StringBuilder whereClause = new StringBuilder();
-        Pattern pattern = Pattern.compile("^(\\w+)(>=|<=|<>|!=|=|>|<| LIKE | like )(.*)$");
-
-
-        Map<String, List<String>> equalFieldValuesMap = new HashMap<>();
-
-        for (String condition : conditions) {
-            Matcher matcher = pattern.matcher(condition.trim());
-
-            if (!matcher.matches() || matcher.groupCount() != 3) {
-                throw new DataproxyException(DataproxyErrorCode.INVALID_PARTITION_SPEC, "Invalid condition format: " + condition);
-            }
-
-            String column = matcher.group(1).trim();
-            String operator = matcher.group(2);
-            String value = matcher.group(3).trim();
-
-            if (!columnOrValuePattern.matcher(column).matches()) {
-                throw new DataproxyException(DataproxyErrorCode.INVALID_PARTITION_SPEC, "Invalid condition format: " + column);
-            }
-
-            if (!columnOrValuePattern.matcher(value).matches()) {
-                throw new DataproxyException(DataproxyErrorCode.INVALID_PARTITION_SPEC, "Invalid condition format: " + column);
-            }
-
-            // 安全处理用户输入的值，可以根据具体需要进行处理
-            value = value.replace("'", "''"); // 简单处理单引号转义
-
-            if ("=".equals(operator)) {
-                if (equalFieldValuesMap.containsKey(column)) {
-                    equalFieldValuesMap.get(column).add(value);
-                } else {
-                    equalFieldValuesMap.put(column, new ArrayList<>(List.of(value)));
-                }
-            } else {
-                if (!whereClause.isEmpty()) {
-                    whereClause.append(" and ");
-                }
-                whereClause.append(column).append(' ').append(operator).append(" '").append(value).append("'");
-            }
-        }
-        StringBuilder equalFieldClause = buildEqualClause(equalFieldValuesMap);
-
-        if (whereClause.isEmpty()) {
-            return equalFieldClause.toString();
-        }
-
-        if (!equalFieldClause.isEmpty()) {
-            whereClause.append(" and ").append(equalFieldClause);
-        }
-        return whereClause.toString();
-    }
-
-    private void toArrowVector(Record record, VectorSchemaRoot root, int rowIndex) throws IOException {
+    private void toArrowVector(Record record, VectorSchemaRoot root, int rowIndex) {
         FieldVector vector;
         String columnName;
         for (Field field : schema.getFields()) {
@@ -327,7 +190,8 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
             }
             case Utf8 -> {
                 if (vector instanceof VarCharVector varcharVector) {
-                    varcharVector.setSafe(rowIndex, record.getString(columnName).getBytes(StandardCharsets.UTF_8));
+                    // record#getBytes default is UTF-8
+                    varcharVector.setSafe(rowIndex, record.getBytes(columnName));
                 } else {
                     log.warn("Unsupported type: {}", type);
                 }

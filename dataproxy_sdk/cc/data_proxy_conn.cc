@@ -135,6 +135,12 @@ FlightStreamReaderWrapper::ReadRecordBatch() {
   return chunk.data;
 }
 
+std::shared_ptr<arrow::Schema> FlightStreamReaderWrapper::GetSchema() {
+  std::shared_ptr<arrow::Schema> ret;
+  ASSIGN_ARROW_OR_THROW(ret, stream_reader_->GetSchema());
+  return ret;
+}
+
 DataProxyConn::DataProxyConn() {
   impl_ = std::make_unique<DataProxyConn::Impl>();
 }

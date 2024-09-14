@@ -17,30 +17,20 @@
 #include <memory>
 #include <string>
 
-#include "dataproxy_sdk/cc/data_proxy_pb.h"
+#include "arrow/status.h"
 
 namespace dataproxy_sdk {
 
-class DataProxyFile {
+class DataMeshMock {
  public:
-  static std::unique_ptr<DataProxyFile> Make(
-      const proto::DataProxyConfig& config);
-
-  static std::unique_ptr<DataProxyFile> Make();
-
- public:
-  DataProxyFile();
-  ~DataProxyFile();
+  arrow::Status StartServer(const std::string& dm_address,
+                            bool open_dp = false);
+  arrow::Status CloseServer();
 
  public:
-  void DownloadFile(const proto::DownloadInfo& info,
-                    const std::string& file_path,
-                    proto::FileFormat file_format);
-
-  void UploadFile(proto::UploadInfo& info, const std::string& file_path,
-                  proto::FileFormat file_format);
-
-  void Close();
+  static std::unique_ptr<DataMeshMock> Make();
+  DataMeshMock();
+  ~DataMeshMock();
 
  private:
   class Impl;

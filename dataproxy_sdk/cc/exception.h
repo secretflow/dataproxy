@@ -50,4 +50,13 @@ namespace dataproxy_sdk {
     lhs = std::move(__s__).ValueOrDie();         \
   } while (false)
 
+#define ASSIGN_DP_OR_THROW(lhs, rexpr)                        \
+  auto&& _error_or_value = (rexpr);                           \
+  do {                                                        \
+    if ((__builtin_expect(!!(!(_error_or_value).ok()), 0))) { \
+      DATAPROXY_THROW((_error_or_value).status().message());  \
+    }                                                         \
+  } while (0);                                                \
+  lhs = std::move(_error_or_value).ValueUnsafe();
+
 }  // namespace dataproxy_sdk
