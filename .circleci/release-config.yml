@@ -58,9 +58,10 @@ commands:
             python3 -m pip install twine
 
             cd dataproxy_sdk/python
+            
             python setup.py bdist_wheel
 
-            # python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dist/*.whl
+            python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dist/*.whl
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs

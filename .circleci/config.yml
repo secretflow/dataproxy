@@ -113,14 +113,14 @@ jobs:
           command: bash ../devtools/lint-whitespace.sh
 
 workflows:
-  # build-deploy:
-  #   when:
-  #     equal: [ "release", << pipeline.parameters.GHA_Event >> ]
-  #   jobs:
-  #     - build-and-push:
-  #         filters:
-  #           tags:
-  #             only: /^v.*/
+  build-deploy:
+    when:
+      equal: [ "release", << pipeline.parameters.GHA_Event >> ]
+    jobs:
+      - build-and-push:
+          filters:
+            tags:
+              only: /^v.*/
   unittest-workflow:
     when:
       and:
