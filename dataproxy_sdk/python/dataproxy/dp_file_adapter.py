@@ -22,10 +22,8 @@ class DataProxyFileAdapter:
     def __init__(self, config: proto.DataProxyConfig):
         self.data_proxy_file = libdataproxy.DataProxyFile(config.SerializeToString())
 
-
     def close(self):
         self.data_proxy_file.close()
-
 
     def download_file(
         self, info: proto.DownloadInfo, file_path: str, file_format: proto.FileFormat
@@ -38,7 +36,6 @@ class DataProxyFileAdapter:
         logging.info(
             f"dataproxy sdk: download_file[{file_path}], type[{file_format}], size[{size}]"
         )
-
 
     def upload_file(
         self, info: proto.UploadInfo, file_path: str, file_format: proto.FileFormat
