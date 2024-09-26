@@ -127,7 +127,7 @@ jobs:
             # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
             # --push
 
-  linux_publish:
+  linux_sdk_publish:
     parameters:
       python_ver:
         type: string
@@ -139,7 +139,7 @@ jobs:
       - pip_publish:
           python_ver: << parameters.python_ver >>
 
-  macOS_publish:
+  macOS_sdk_publish:
     parameters:
       python_ver:
         type: string
