@@ -13,4 +13,4 @@
 # limitations under the License.
 
 
-__version__ = "0.1.0.dev$$DATE$$"
+__version__ = "0.2.0.dev20240926"
