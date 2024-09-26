@@ -137,3 +137,13 @@ workflows:
             .bazelrc sdk-build-and-run true
             WORKSPACE sdk-build-and-run true
       - lint
+  sdk-publish-workflow:
+    when:
+      equal: [ "release", << pipeline.parameters.GHA_Event >> ]
+    jobs:
+      - continuation/continue:
+          configuration_path: .circleci/release-config.yml
+          # This is mandatory to trigger a pipeline when pushing a tag
+          filters:
+            tags:
+              only: /^v.*/
