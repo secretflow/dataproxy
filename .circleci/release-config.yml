@@ -42,6 +42,9 @@ executors:
     macos:
       xcode: 15.1.0
     resource_class: macos.m1.large.gen1
+  openjdk-executor-17:
+    docker:
+      - image: cimg/openjdk:17.0
 
 commands:
   pip_publish:
@@ -61,11 +64,69 @@ commands:
 
             python setup.py bdist_wheel
 
-            python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dist/*.whl
+            # python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dist/*.whl
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
+  build-and-push:
+    executor: openjdk-executor-17
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Jar
+          command: make build
+      - run:
+          name: Push to Docker Hub
+          command: |
+            # login dataproxy dockerhub registry
+            docker login -u ${DOCKER_DEPLOY_USERNAME} -p ${DOCKER_DEPLOY_TOKEN}
+            # login dataproxy aliyun registry
+            docker login -u ${ALIYUN_DOCKER_USERNAME} -p ${ALIYUN_DOCKER_PASSWORD}  secretflow-registry.cn-hangzhou.cr.aliyuncs.com
+            CIRCLETAG=$(echo ${CIRCLE_TAG} | sed 's/v//')
+
+            BUILDER_EXISTS=$(
+              docker buildx inspect dataproxy_image_buildx >/dev/null 2>&1
+              echo $?
+            )
+
+            if [ "$BUILDER_EXISTS" -eq 0 ]; then
+              echo "existing buildx builder: dataproxy_image_buildx"
+              docker buildx use dataproxy_image_buildx
+            else
+              echo "creating new buildx builder: dataproxy_image_buildx"
+              docker buildx create --name dataproxy_image_buildx --use
+            fi
+
+            # remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:latest"
+            # docker buildx build \
+            # --platform linux/arm64,linux/amd64 \
+            # --tag "${remote_image}" \
+            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            # --push
+
+            # remote_image="secretflow/dataproxy:latest"
+            # docker buildx build \
+            # --platform linux/arm64,linux/amd64 \
+            # --tag "${remote_image}" \
+            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            # --push
+
+            # remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:${CIRCLETAG}"
+            # docker buildx build \
+            # --platform linux/arm64,linux/amd64 \
+            # --tag "${remote_image}" \
+            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            # --push
+
+            # remote_image="secretflow/dataproxy:${CIRCLETAG}"
+            # docker buildx build \
+            # --platform linux/arm64,linux/amd64 \
+            # --tag "${remote_image}" \
+            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            # --push
+
   linux_publish:
     parameters:
       python_ver:
@@ -106,7 +167,7 @@ jobs:
 workflows:
   publish:
     jobs:
-      - linux_publish:
+      - linux_sdk_publish:
           matrix:
             parameters:
               python_ver: ["3.9", "3.10", "3.11"]
@@ -115,12 +176,16 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-      - macOS_publish:
+      - macOS_sdk_publish:
           matrix:
             parameters:
               python_ver: ["3.9", "3.10", "3.11"]
               executor: ["macos_arm64_executor"]
           # This is mandatory to trigger a pipeline when pushing a tag
+          filters:
+            tags:
+              only: /^v.*/
+      - build-and-push:
           filters:
             tags:
               only: /^v.*/

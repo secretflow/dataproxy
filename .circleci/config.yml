@@ -34,69 +34,8 @@ parameters:
     type: string
     default: ""
 
-executors:
-  openjdk-executor-17:
-    docker:
-      - image: cimg/openjdk:17.0
 
 jobs:
-  build-and-push:
-    executor: openjdk-executor-17
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Build Jar
-          command: make build
-      - run:
-          name: Push to Docker Hub
-          command: |
-            # login dataproxy dockerhub registry
-            docker login -u ${DOCKER_DEPLOY_USERNAME} -p ${DOCKER_DEPLOY_TOKEN}
-            # login dataproxy aliyun registry
-            docker login -u ${ALIYUN_DOCKER_USERNAME} -p ${ALIYUN_DOCKER_PASSWORD}  secretflow-registry.cn-hangzhou.cr.aliyuncs.com
-            CIRCLETAG=$(echo ${CIRCLE_TAG} | sed 's/v//')
-
-            BUILDER_EXISTS=$(
-              docker buildx inspect dataproxy_image_buildx >/dev/null 2>&1
-              echo $?
-            )
-
-            if [ "$BUILDER_EXISTS" -eq 0 ]; then
-              echo "existing buildx builder: dataproxy_image_buildx"
-              docker buildx use dataproxy_image_buildx
-            else
-              echo "creating new buildx builder: dataproxy_image_buildx"
-              docker buildx create --name dataproxy_image_buildx --use
-            fi
-
-            remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:latest"
-            docker buildx build \
-            --platform linux/arm64,linux/amd64 \
-            --tag "${remote_image}" \
-            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            --push
-
-            remote_image="secretflow/dataproxy:latest"
-            docker buildx build \
-            --platform linux/arm64,linux/amd64 \
-            --tag "${remote_image}" \
-            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            --push
-
-            remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:${CIRCLETAG}"
-            docker buildx build \
-            --platform linux/arm64,linux/amd64 \
-            --tag "${remote_image}" \
-            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            --push
-
-            remote_image="secretflow/dataproxy:${CIRCLETAG}"
-            docker buildx build \
-            --platform linux/arm64,linux/amd64 \
-            --tag "${remote_image}" \
-            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            --push
   lint:
     # Use machine executor for convenient data sharing between the host and docker-compose cluster
     docker:
@@ -117,7 +56,9 @@ workflows:
     when:
       equal: [ "release", << pipeline.parameters.GHA_Event >> ]
     jobs:
-      - build-and-push:
+      - continuation/continue:
+          configuration_path: .circleci/release-config.yml
+          # This is mandatory to trigger a pipeline when pushing a tag
           filters:
             tags:
               only: /^v.*/
@@ -137,13 +78,4 @@ workflows:
             .bazelrc sdk-build-and-run true
             WORKSPACE sdk-build-and-run true
       - lint
-  sdk-publish-workflow:
-    when:
-      equal: [ "release", << pipeline.parameters.GHA_Event >> ]
-    jobs:
-      - continuation/continue:
-          configuration_path: .circleci/release-config.yml
-          # This is mandatory to trigger a pipeline when pushing a tag
-          filters:
-            tags:
-              only: /^v.*/
+
