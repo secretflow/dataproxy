@@ -64,7 +64,7 @@ commands:
 
             python setup.py bdist_wheel
 
-            # python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dist/*.whl
+            python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dist/*.whl
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
@@ -99,33 +99,33 @@ jobs:
               docker buildx create --name dataproxy_image_buildx --use
             fi
 
-            # remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:latest"
-            # docker buildx build \
-            # --platform linux/arm64,linux/amd64 \
-            # --tag "${remote_image}" \
-            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            # --push
+            remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:latest"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
 
-            # remote_image="secretflow/dataproxy:latest"
-            # docker buildx build \
-            # --platform linux/arm64,linux/amd64 \
-            # --tag "${remote_image}" \
-            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            # --push
+            remote_image="secretflow/dataproxy:latest"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
 
-            # remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:${CIRCLETAG}"
-            # docker buildx build \
-            # --platform linux/arm64,linux/amd64 \
-            # --tag "${remote_image}" \
-            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            # --push
+            remote_image="secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/dataproxy:${CIRCLETAG}"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
 
-            # remote_image="secretflow/dataproxy:${CIRCLETAG}"
-            # docker buildx build \
-            # --platform linux/arm64,linux/amd64 \
-            # --tag "${remote_image}" \
-            # -f ./build/Dockerfiles/dataproxy.Dockerfile . \
-            # --push
+            remote_image="secretflow/dataproxy:${CIRCLETAG}"
+            docker buildx build \
+            --platform linux/arm64,linux/amd64 \
+            --tag "${remote_image}" \
+            -f ./build/Dockerfiles/dataproxy.Dockerfile . \
+            --push
 
   linux_sdk_publish:
     parameters:
