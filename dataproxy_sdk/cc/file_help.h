@@ -28,9 +28,9 @@ class FileHelpWrite {
  public:
   struct Options {
     // only orc use by sf
-    arrow::Compression::type compression = arrow::Compression::ZSTD;
+    arrow::Compression::type compression = arrow::Compression::UNCOMPRESSED;
     // only orc use by sf
-    int64_t compression_block_size = 256 * 1024;
+    int64_t compression_block_size = 64 * 1024;
     // only orc use by sf
     int64_t stripe_size = 64 * 1024 * 1024;
 
