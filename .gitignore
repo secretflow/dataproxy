@@ -58,3 +58,9 @@ CTestTestfile.cmake
 
 # bazel
 bazel-*
+
+#python
+*.pyc
+*egg-info
+build/
+dist/
