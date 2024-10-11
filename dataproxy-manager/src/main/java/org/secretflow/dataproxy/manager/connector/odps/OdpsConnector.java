@@ -15,7 +15,7 @@
  */
 package org.secretflow.dataproxy.manager.connector.odps;
 
-import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.OdpsException;
 import org.apache.arrow.memory.BufferAllocator;
 import org.secretflow.dataproxy.common.model.InferSchemaResult;
 import org.secretflow.dataproxy.common.model.command.DatasetReadCommand;
@@ -89,7 +89,7 @@ public class OdpsConnector implements Connector {
         if (Objects.equals(DatasetFormatTypeEnum.TABLE, writeCommand.getFormatConfig().getType())) {
             try {
                 return new OdpsDataWriter(config, locationConfig, writeCommand.getSchema());
-            } catch (TunnelException | IOException e) {
+            } catch (IOException | OdpsException e) {
                 throw new RuntimeException(e);
             }
         }

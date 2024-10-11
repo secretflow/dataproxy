@@ -40,6 +40,7 @@
         <commons-lang3.version>3.12.0</commons-lang3.version>
         <commons-collections4.version>4.4</commons-collections4.version>
         <commons-compress.version>1.26.2</commons-compress.version>
+        <commons-configuration2.version>2.10.1</commons-configuration2.version>
         <hikaricp.version>4.0.3</hikaricp.version>
         <pagehelper-spring-boot-starter.version>1.3.1</pagehelper-spring-boot-starter.version>
         <okio.version>3.4.0</okio.version>
@@ -158,6 +159,13 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
                 <version>${commons-compress.version}</version>
+            </dependency>
+
+            <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-configuration2 -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-configuration2</artifactId>
+                <version>${commons-configuration2.version}</version>
             </dependency>
 
             <!-- apache commons end -->

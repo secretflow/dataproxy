@@ -84,7 +84,15 @@ public enum DataproxyErrorCode {
 
     // odps 异常
     ODPS_CREATE_TABLE_FAILED(ErrorLevels.ERROR, ErrorTypes.BIZ, "600", "Create ODPS table failed"),
-    ODPS_ERROR(ErrorLevels.ERROR, ErrorTypes.BIZ, "601", "ODPS error"),
+    ODPS_CREATE_PARTITION_FAILED(ErrorLevels.ERROR, ErrorTypes.BIZ, "601", "Create ODPS table failed"),
+    ODPS_ERROR(ErrorLevels.ERROR, ErrorTypes.BIZ, "602", "ODPS error"),
+    ODPS_TABLE_ALREADY_EXISTS(ErrorLevels.ERROR, ErrorTypes.BIZ, "603", "odps table already exists"),
+    ODPS_TABLE_NOT_EXISTS(ErrorLevels.ERROR, ErrorTypes.BIZ, "604", "odps table not exists"),
+    ODPS_PARTITION_ALREADY_EXISTS(ErrorLevels.ERROR, ErrorTypes.BIZ, "605", "odps partition already exists"),
+    ODPS_PARTITION_NOT_EXISTS(ErrorLevels.ERROR, ErrorTypes.BIZ, "606", "odps partition not exists"),
+    ODPS_TABLE_NOT_EMPTY(ErrorLevels.ERROR, ErrorTypes.BIZ, "607", "odps table not empty"),
+    ODPS_TABLE_NOT_SUPPORT_PARTITION(ErrorLevels.ERROR, ErrorTypes.BIZ, "608", "odps table not support partition"),
+
 
     //============================= 第三方错误【900-999】==================================
 

@@ -78,4 +78,3 @@ workflows:
             .bazelrc sdk-build-and-run true
             WORKSPACE sdk-build-and-run true
       - lint
-

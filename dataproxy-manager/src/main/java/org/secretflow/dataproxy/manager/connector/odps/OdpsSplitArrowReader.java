@@ -15,21 +15,30 @@
  */
 package org.secretflow.dataproxy.manager.connector.odps;
 
+import com.aliyun.odps.Column;
 import com.aliyun.odps.Instance;
 import com.aliyun.odps.Odps;
 import com.aliyun.odps.OdpsException;
-import com.aliyun.odps.TableSchema;
+import com.aliyun.odps.PartitionSpec;
+import com.aliyun.odps.data.ArrayRecord;
 import com.aliyun.odps.data.Record;
-import com.aliyun.odps.data.ResultSet;
 import com.aliyun.odps.task.SQLTask;
+import com.aliyun.odps.tunnel.InstanceTunnel;
+import com.aliyun.odps.tunnel.TunnelException;
+import com.aliyun.odps.tunnel.io.TunnelRecordReader;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -43,8 +52,17 @@ import org.secretflow.dataproxy.common.model.datasource.location.OdpsTableInfo;
 import org.secretflow.dataproxy.manager.SplitReader;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * odps Table Split Reader
@@ -61,13 +79,21 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
 
     private final Schema schema;
 
-    private TableSchema tableSchema;
+    private final int batchSize = 10000;
 
-    private final int batchSize = 1000;
+    private boolean partitioned = false;
 
-    private ResultSet resultSet;
+    private InstanceTunnel.DownloadSession downloadSession;
+
+    private int currentIndex = 0;
+
+    private final Set<String> columns = new HashSet<>();
 
     private final Pattern columnOrValuePattern = Pattern.compile("^[\\u00b7A-Za-z0-9\\u4e00-\\u9fa5\\-_,.]*$");
+
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    private final LinkedBlockingQueue<Record> recordQueue = new LinkedBlockingQueue<>(batchSize);
 
     protected OdpsSplitArrowReader(BufferAllocator allocator, OdpsConnConfig odpsConnConfig, OdpsTableInfo tableInfo, Schema schema) {
         super(allocator);
@@ -80,29 +106,82 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
     public boolean loadNextBatch() throws IOException {
         VectorSchemaRoot root = getVectorSchemaRoot();
         root.clear();
+        long resultCount = downloadSession.getRecordCount();
+        log.info("Load next batch start, recordCount: {}", resultCount);
 
-        ValueVectorUtility.preAllocate(root, batchSize);
-        Record next;
-
-        int recordCount = 0;
-        if (!resultSet.hasNext()) {
+        if (currentIndex >= resultCount) {
             return false;
         }
-        while (resultSet.hasNext()) {
-            next = resultSet.next();
-            if (next != null) {
 
-                ValueVectorUtility.ensureCapacity(root, recordCount + 1);
-                toArrowVector(next, root, recordCount);
+        int recordCount = 0;
+
+        try (TunnelRecordReader records = downloadSession.openRecordReader(currentIndex, batchSize, true)) {
+
+            Record firstRecord = records.read();
+            if (firstRecord != null) {
+                ValueVectorUtility.preAllocate(root, batchSize);
+                root.setRowCount(batchSize);
+
+                root.getFieldVectors().forEach(fieldVector -> {
+                    if (fieldVector instanceof FixedWidthVector baseFixedWidthVector) {
+                        baseFixedWidthVector.allocateNew(batchSize);
+                    } else if (fieldVector instanceof VariableWidthVector baseVariableWidthVector){
+                        baseVariableWidthVector.allocateNew(batchSize * 32);
+                    }
+                });
+
+
+                Future<?> submitFuture = executorService.submit(() -> {
+                    try {
+                        int takeRecordCount = 0;
+
+                        for(;;) {
+
+                            Record record = recordQueue.take();
+
+                            if (record instanceof ArrayRecord && record.getColumns().length == 0) {
+                                log.info("recordQueue take record take Count: {}", takeRecordCount);
+                                break;
+                            }
+
+                            ValueVectorUtility.ensureCapacity(root, takeRecordCount + 1);
+                            this.toArrowVector(record, root, takeRecordCount);
+                            takeRecordCount++;
+
+                        }
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+
+                columns.addAll(Arrays.stream(firstRecord.getColumns()).map(Column::getName).collect(Collectors.toSet()));
+
+                recordQueue.put(firstRecord);
                 recordCount++;
+                // 使用 #read() 方法迭代读取，将会处理历史的 record 记录的数据，异步时，将读取不到数据，可使用 #clone() 方法，性能差距不大
+                for (Record record : records) {
+                    try {
+                        recordQueue.put(record);
+                        recordCount++;
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                recordQueue.put(new ArrayRecord(new Column[0]));
+                log.info("recordQueue put record Count: {}", recordCount);
+
+                submitFuture.get();
+                currentIndex += batchSize;
+            } else {
+                log.warn("Read first record is null, maybe it has been read.");
             }
 
-            if (recordCount == batchSize) {
-                root.setRowCount(recordCount);
-                return true;
-            }
+        } catch (TunnelException | ExecutionException | InterruptedException e) {
+            throw new RuntimeException(e);
         }
         root.setRowCount(recordCount);
+        log.info("Load next batch success, recordCount: {}", recordCount);
         return true;
     }
 
@@ -113,7 +192,7 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
 
     @Override
     protected void closeReadSource() throws IOException {
-
+        executorService.shutdownNow();
     }
 
     @Override
@@ -127,23 +206,21 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
         Odps odps = OdpsUtil.buildOdps(odpsConnConfig);
         String sql = "";
         try {
-            sql = this.buildSql(tableInfo.tableName(), tableInfo.fields(), tableInfo.partitionSpec());
-            log.debug("SQLTask run sql: {}", sql);
+            partitioned = odps.tables().get(odpsConnConfig.getProjectName(), tableInfo.tableName()).isPartitioned();
 
-            Instance instance = SQLTask.run(odps, sql);
+            sql = this.buildSql(tableInfo.tableName(), tableInfo.fields(), tableInfo.partitionSpec());
+            Instance instance = SQLTask.run(odps, odpsConnConfig.getProjectName(), sql, OdpsUtil.getSqlFlag(), null);
+
+            log.info("SQLTask run start, sql: {}", sql);
             // 等待任务完成
             instance.waitForSuccess();
+            log.info("SQLTask run success, sql: {}", sql);
 
-            resultSet = SQLTask.getResultSet(instance);
-
-            tableSchema = resultSet.getTableSchema();
+            downloadSession = new InstanceTunnel(odps).createDownloadSession(odps.getDefaultProject(), instance.getId(), false);
 
         } catch (OdpsException e) {
             log.error("SQLTask run error, sql: {}", sql, e);
             throw DataproxyException.of(DataproxyErrorCode.ODPS_ERROR, e.getMessage(), e);
-        } catch (IOException e) {
-            log.error("startRead error, sql: {}", sql, e);
-            throw new RuntimeException(e);
         }
 
         return this;
@@ -155,6 +232,32 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
             throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid tableName:" + tableName);
         }
 
+        // 普通表不再拼接条件语句
+        if (!partitioned) {
+            whereClause = "";
+        }
+        //TODO: 条件判断逻辑调整
+        if (!whereClause.isEmpty()) {
+            String[] groups = whereClause.split("[,/]");
+            if (groups.length > 1) {
+                final PartitionSpec partitionSpec = new PartitionSpec(whereClause);
+
+                for (String key : partitionSpec.keys()) {
+                    if (!columnOrValuePattern.matcher(key).matches()) {
+                        throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid partition key:" + key);
+                    }
+                    if (!columnOrValuePattern.matcher(partitionSpec.get(key)).matches()) {
+                        throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid partition value:" + partitionSpec.get(key));
+                    }
+                }
+
+                List<String> list = partitionSpec.keys().stream().map(k -> k + "='" + partitionSpec.get(k) + "'").toList();
+                whereClause = String.join(" and ", list);
+            }
+        }
+
+        log.info("whereClause: {}", whereClause);
+
         return "select " + String.join(",", fields) + " from " + tableName + (whereClause.isEmpty() ? "" : " where " + whereClause) + ";";
     }
 
@@ -164,26 +267,39 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
         for (Field field : schema.getFields()) {
             vector = root.getVector(field);
             if (vector != null) {
-                columnName = field.getName();
-                if (tableSchema.containsColumn(columnName)) {
-                    setValue(vector.getField().getType(), vector, rowIndex, record, columnName);
-                    vector.setValueCount(rowIndex + 1);
+                // odps 获取到的字段名为小写，此处做一下兼容
+                columnName = field.getName().toLowerCase();
+
+                if (this.hasColumn(columnName)) {
+                    this.setValue(vector.getField().getType(), vector, rowIndex, record, columnName);
                 }
             }
         }
     }
 
+    private boolean hasColumn(String columnName) {
+        return columns.contains(columnName);
+    }
+
     private void setValue(ArrowType type, FieldVector vector, int rowIndex, Record record, String columnName) {
-        log.debug("columnName: {} type ID: {}, value: {}", columnName, type.getTypeID(), record.get(columnName));
-        if (record.get(columnName) == null) {
+        Object columnValue = record.get(columnName);
+        log.debug("columnName: {} type ID: {}, index:{}, value: {}", columnName, type.getTypeID(), rowIndex, columnValue);
+
+        if (columnValue == null) {
+            vector.setNull(rowIndex);
+//            log.warn("set null, columnName: {} type ID: {}, index:{}, value: {}", columnName, type.getTypeID(), rowIndex, record);
             return;
         }
         switch (type.getTypeID()) {
             case Int -> {
-                if (vector instanceof IntVector intVector) {
-                    intVector.setSafe(rowIndex, Integer.parseInt(record.get(columnName).toString()));
+                if (vector instanceof SmallIntVector smallIntVector) {
+                    smallIntVector.set(rowIndex, Short.parseShort(columnValue.toString()));
+                } else if (vector instanceof IntVector intVector) {
+                    intVector.set(rowIndex, Integer.parseInt(columnValue.toString()));
                 } else if (vector instanceof BigIntVector bigIntVector) {
-                    bigIntVector.setSafe(rowIndex, Long.parseLong(record.get(columnName).toString()));
+                    bigIntVector.set(rowIndex, Long.parseLong(columnValue.toString()));
+                } else if (vector instanceof TinyIntVector tinyIntVector) {
+                    tinyIntVector.set(rowIndex, Byte.parseByte(columnValue.toString()));
                 } else {
                     log.warn("Unsupported type: {}", type);
                 }
@@ -198,11 +314,24 @@ public class OdpsSplitArrowReader extends ArrowReader implements SplitReader, Au
             }
             case FloatingPoint -> {
                 if (vector instanceof Float4Vector floatVector) {
-                    floatVector.setSafe(rowIndex, Float.parseFloat(record.get(columnName).toString()));
+                    floatVector.set(rowIndex, Float.parseFloat(columnValue.toString()));
                 } else if (vector instanceof Float8Vector doubleVector) {
-                    doubleVector.setSafe(rowIndex, Double.parseDouble(record.get(columnName).toString()));
+                    doubleVector.set(rowIndex, Double.parseDouble(columnValue.toString()));
                 } else {
                     log.warn("Unsupported type: {}", type);
+                }
+            }
+            case Bool -> {
+                if (vector instanceof BitVector bitVector) {
+
+                    // 	switch str {
+                    //	case "1", "t", "T", "true", "TRUE", "True":
+                    //		return true, nil
+                    //	case "0", "f", "F", "false", "FALSE", "False":
+                    //		return false, nil
+                    bitVector.set(rowIndex, record.getBoolean(columnName) ? 1 : 0);
+                } else {
+                    log.warn("ArrowType ID is Bool: Unsupported type: {}", vector.getClass());
                 }
             }
 
