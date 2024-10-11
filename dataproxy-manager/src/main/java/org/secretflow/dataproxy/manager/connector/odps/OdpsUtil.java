@@ -20,6 +20,10 @@ import com.aliyun.odps.account.Account;
 import com.aliyun.odps.account.AliyunAccount;
 import org.secretflow.dataproxy.common.model.datasource.conn.OdpsConnConfig;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * odps util
  *
@@ -35,5 +39,11 @@ public class OdpsUtil {
         odps.setDefaultProject(odpsConnConfig.getProjectName());
 
         return odps;
+    }
+
+    public static Map<String, String> getSqlFlag() {
+        HashMap<String, String> hints = new LinkedHashMap<>();
+        hints.put("odps.sql.type.system.odps2", "true");
+        return hints;
     }
 }

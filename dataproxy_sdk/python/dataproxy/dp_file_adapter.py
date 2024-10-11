@@ -28,6 +28,10 @@ class DataProxyFileAdapter:
     def download_file(
         self, info: proto.DownloadInfo, file_path: str, file_format: proto.FileFormat
     ):
+        logging.info(
+            f"dataproxy sdk: start download_file[{file_path}], type[{file_format}]"
+        )
+
         self.data_proxy_file.download_file(
             info.SerializeToString(), file_path, file_format
         )
@@ -40,6 +44,10 @@ class DataProxyFileAdapter:
     def upload_file(
         self, info: proto.UploadInfo, file_path: str, file_format: proto.FileFormat
     ):
+        logging.info(
+            f"dataproxy sdk: start upload_file[{file_path}], type[{file_format}]"
+        )
+
         self.data_proxy_file.upload_file(
             info.SerializeToString(), file_path, file_format
         )

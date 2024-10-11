@@ -129,6 +129,7 @@ class DataProxyFile::Impl {
 
       ASSIGN_DP_OR_THROW(batch_size, arrow::util::ReferencedBufferSize(*batch));
       if (batch_size > kMaxBatchSize) {
+        slice_offset = 0;
         slice_size = (batch_size + kMaxBatchSize - 1) / kMaxBatchSize;
         slice_left = batch->num_rows();
         slice_len = (slice_left + slice_size - 1) / slice_size;

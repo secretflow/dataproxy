@@ -162,15 +162,18 @@ public class DataProxyServiceDirectImpl implements DataProxyService {
                 writeCommand.setSchema(batch.getSchema());
             }
 
+            int batchSize = 0;
+
             try (DataWriter dataWriter = connector.buildWriter(writeCommand)) {
                 while (flightStream.next()) {
                     dataWriter.write(batch);
                     // 调用写回调
                     writeCallback.ack(batch);
-                    log.info("[datasetWrite] 数据块存储成功");
+                    log.info("[datasetWrite] dataset batch write is successful");
+                    batchSize += batch.getRowCount();
                 }
                 dataWriter.flush();
-                log.info("[datasetWrite] dataset write over");
+                log.info("[datasetWrite] dataset write over, total size: {}", batchSize);
             }
         } catch (DataproxyException e) {
             log.error("[datasetWrite] dataset write error, cmd: {}", JsonUtils.toJSONString(writeCommand), e);
