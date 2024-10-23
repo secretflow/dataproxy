@@ -46,10 +46,12 @@ import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
 import org.secretflow.dataproxy.common.model.datasource.conn.OdpsConnConfig;
 import org.secretflow.dataproxy.common.model.datasource.location.OdpsTableInfo;
+import org.secretflow.dataproxy.common.utils.JsonUtils;
 import org.secretflow.dataproxy.manager.DataWriter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -72,6 +74,7 @@ public class OdpsDataWriter implements DataWriter {
 
     private boolean isPartitioned = false;
 
+    private TableSchema odpsTableSchema = null;
     private TableTunnel.UploadSession uploadSession = null;
     private RecordWriter recordWriter = null;
 
@@ -152,7 +155,8 @@ public class OdpsDataWriter implements DataWriter {
         // init odps client
         Odps odps = initOdpsClient(this.connConfig);
         // Pre-processing
-        preProcessing(odps, connConfig.getProjectName(), tableInfo.tableName(), this.convertToPartitionSpec(tableInfo.partitionSpec()));
+        PartitionSpec convertPartitionSpec = this.convertToPartitionSpec(tableInfo.partitionSpec());
+        preProcessing(odps, connConfig.getProjectName(), tableInfo.tableName(), convertPartitionSpec);
         // init upload session
         TableTunnel tunnel = new TableTunnel(odps);
 
@@ -160,7 +164,12 @@ public class OdpsDataWriter implements DataWriter {
             if (tableInfo.partitionSpec() == null || tableInfo.partitionSpec().isEmpty()) {
                 throw DataproxyException.of(DataproxyErrorCode.INVALID_PARTITION_SPEC, "partitionSpec is empty");
             }
-            PartitionSpec partitionSpec = new PartitionSpec(tableInfo.partitionSpec());
+            assert this.odpsTableSchema != null;
+            List<Column> partitionColumns = this.odpsTableSchema.getPartitionColumns();
+            PartitionSpec partitionSpec = new PartitionSpec();
+            for (Column partitionColumn : partitionColumns) {
+                partitionSpec.set(partitionColumn.getName(), convertPartitionSpec.get(partitionColumn.getName()));
+            }
             uploadSession = tunnel.createUploadSession(connConfig.getProjectName(), tableInfo.tableName(), partitionSpec, overwrite);
         } else {
             uploadSession = tunnel.createUploadSession(connConfig.getProjectName(), tableInfo.tableName(), overwrite);
@@ -271,7 +280,10 @@ public class OdpsDataWriter implements DataWriter {
         } else {
             log.info("odps table is exists, project: {}, table name: {}", projectName, tableName);
         }
-        isPartitioned = odps.tables().get(projectName, tableName).isPartitioned();
+
+        Table table = odps.tables().get(projectName, tableName);
+        isPartitioned = table.isPartitioned();
+        this.setOdpsTableSchemaIfAbsent(table.getSchema());
 
         if (isPartitioned) {
             if (partitionSpec == null || partitionSpec.isEmpty()) {
@@ -334,8 +346,29 @@ public class OdpsDataWriter implements DataWriter {
             TableSchema tableSchema = convertToTableSchema(schema);
             if (partitionSpec != null) {
                 // Infer partitioning field type as string.
-                partitionSpec.keys().forEach(key -> tableSchema.addPartitionColumn(Column.newBuilder(key, TypeInfoFactory.STRING).build()));
+                List<Column> tableSchemaColumns = tableSchema.getColumns();
+                List<Integer> partitionColumnIndexes = new ArrayList<>();
+                ArrayList<Column> partitionColumns = new ArrayList<>();
+
+                for (String key : partitionSpec.keys()) {
+                    if (tableSchema.containsColumn(key)) {
+                        log.info("tableSchemaColumns contains partition column: {}", key);
+                        partitionColumnIndexes.add(tableSchema.getColumnIndex(key));
+                        partitionColumns.add(tableSchema.getColumn(key));
+                    } else {
+                        log.info("tableSchemaColumns not contains partition column: {}", key);
+                        partitionColumns.add(Column.newBuilder(key, TypeInfoFactory.STRING).build());
+                    }
+                }
+
+                for (int i = 0; i < partitionColumnIndexes.size(); i++) {
+                    tableSchemaColumns.remove(partitionColumnIndexes.get(i) - i);
+                }
+                log.info("tableSchemaColumns: {}, partitionColumnIndexes: {}", JsonUtils.toString(tableSchemaColumns), JsonUtils.toString(partitionColumnIndexes));
+                tableSchema.setColumns(tableSchemaColumns);
+                tableSchema.setPartitionColumns(partitionColumns);
             }
+            log.info("create odps table schema: {}", JsonUtils.toString(tableSchema));
             odps.tables().create(projectName, tableName, tableSchema, "", true, null, OdpsUtil.getSqlFlag(), null);
             return true;
         } catch (Exception e) {
@@ -353,6 +386,12 @@ public class OdpsDataWriter implements DataWriter {
             log.error("create odps partition error, projectName:{}, tableName:{}", projectName, tableName, e);
         }
         return false;
+    }
+
+    private void setOdpsTableSchemaIfAbsent(TableSchema tableSchema) {
+        if (odpsTableSchema == null) {
+            this.odpsTableSchema = tableSchema;
+        }
     }
 
     private TableSchema convertToTableSchema(Schema schema) {
