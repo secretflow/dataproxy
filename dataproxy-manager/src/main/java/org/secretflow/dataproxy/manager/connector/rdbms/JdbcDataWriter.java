@@ -26,11 +26,10 @@ import org.secretflow.dataproxy.common.model.dataset.format.TableFormatConfig;
 import org.secretflow.dataproxy.common.model.datasource.location.JdbcLocationConfig;
 import org.secretflow.dataproxy.common.utils.JsonUtils;
 import org.secretflow.dataproxy.manager.DataWriter;
-import org.secretflow.dataproxy.manager.connector.rdbms.adaptor.JdbcParameterBinder;
 
 import java.io.IOException;
-import java.sql.*;
-import java.util.Arrays;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -90,7 +89,9 @@ public class JdbcDataWriter implements DataWriter {
         log.info("[JdbcDataWriter] preSql execute start, sql: {}", JsonUtils.toJSONString(preSqlList));
 
         try (Connection conn = this.jdbcAssistant.getDatabaseConn(dataSource)) {
-            executePreWorkSqls(conn, preSqlList);
+            // do nothing
+            // Avoid SQL injection issues
+            // About to Delete
         } catch (SQLException e) {
             throw DataproxyException.of(DataproxyErrorCode.JDBC_CREATE_TABLE_FAILED, e.getMessage(), e);
         }
@@ -103,61 +104,7 @@ public class JdbcDataWriter implements DataWriter {
 
     @Override
     public void write(VectorSchemaRoot root) throws IOException {
-        ensureInitialized(root.getSchema());
-
-        // 每次直接发送，不积攒
-        final int rowCount = root.getRowCount();
-        int recordCount = 0;
-
-        try (Connection conn = this.jdbcAssistant.getDatabaseConn(dataSource)) {
-            boolean finished = false;
-
-            if (this.jdbcAssistant.supportBatchInsert()) {
-                try (PreparedStatement preparedStatement = conn.prepareStatement(this.stmt)) {
-                    if (rowCount != 0) {
-                        final JdbcParameterBinder binder = JdbcParameterBinder.builder(preparedStatement, root).bindAll().build();
-                        while (binder.next()) {
-                            preparedStatement.addBatch();
-                        }
-                        int[] recordCounts = preparedStatement.executeBatch();
-                        recordCount = Arrays.stream(recordCounts).sum();
-                    }
-                    finished = true;
-                } catch (Exception e) {
-                    log.warn("[JdbcDataWriter] prepare batch write error, then dp will try to generate integral insert sql, stmt:{}", this.stmt, e);
-                }
-            }
-
-            // 不支持prepare模式，需要构造完整insert语句
-            //insert into `default`.`test_table`(`int32`,`float64`,`string`) values(?,?,?)
-            if (!finished) {
-                String insertSql = null;
-                List<JDBCType> jdbcTypes = root.getFieldVectors().stream()
-                    .map(vector -> this.jdbcAssistant.arrowTypeToJdbcType(vector.getField()))
-                    .toList();
-
-                try (Statement statement = conn.createStatement()) {
-                    // 数据逐行写入
-                    for (int row = 0; row < root.getRowCount(); row++) {
-                        String[] values = new String[root.getFieldVectors().size()];
-                        for (int col = 0; col < root.getFieldVectors().size(); col++) {
-                            values[col] = this.jdbcAssistant.serialize(jdbcTypes.get(col), root.getVector(col).getObject(row));
-                        }
-
-                        insertSql = String.format(this.stmt.replace("?", "%s"), (Object[]) values);
-                        statement.execute(insertSql);
-                    }
-                } catch (Exception e) {
-                    log.error("[JdbcDataWriter] integral insert sql error, sql:{}", insertSql, e);
-                    throw e;
-                }
-            }
-
-            log.info("[JdbcDataWriter] jdbc batch write success, record count:{}, table:{}", recordCount, this.composeTableName);
-        } catch (Exception e) {
-            log.error("[JdbcDataWriter] jdbc batch write failed, table:{}", this.composeTableName);
-            throw DataproxyException.of(DataproxyErrorCode.JDBC_INSERT_INTO_TABLE_FAILED, e);
-        }
+        throw DataproxyException.of(DataproxyErrorCode.JDBC_INSERT_INTO_TABLE_FAILED, "jdbc not support write");
     }
 
     @Override
@@ -177,17 +124,6 @@ public class JdbcDataWriter implements DataWriter {
                 this.dataSource.close();
             }
         } catch (Exception ignored) {
-        }
-    }
-
-    void executePreWorkSqls(Connection conn, List<String> preWorkSqls) throws SQLException {
-        for (String sql : preWorkSqls) {
-            try (Statement statement = conn.createStatement()) {
-                statement.execute(sql);
-            } catch (SQLException e) {
-                log.error("[SinkJdbcHandler] 数据转移前预先执行SQL失败：{}", sql);
-                throw e;
-            }
         }
     }
 }

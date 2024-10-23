@@ -296,8 +296,17 @@ public class DataproxyProducerImpl implements DataproxyProducer {
             log.info("[getStreamReadData] parse command from ticket success, command:{}", JsonUtils.toJSONString(command));
             try (ArrowReader arrowReader = dataProxyService.generateArrowReader(rootAllocator, (DatasetReadCommand) command.getCommandInfo())) {
                 listener.start(arrowReader.getVectorSchemaRoot());
-                while (arrowReader.loadNextBatch()) {
-                    listener.putNext();
+
+                while (true) {
+                    if (context.isCancelled()) {
+                        log.warn("[getStreamReadData] get stream cancelled");
+                        break;
+                    }
+                    if (arrowReader.loadNextBatch()) {
+                        listener.putNext();
+                    } else {
+                        break;
+                    }
                 }
                 listener.completed();
                 log.info("[getStreamReadData] get stream completed");
