@@ -44,7 +44,7 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
     pip.parse(
         hub_name = "dataproxy_sdk_pip",
         python_version = python_version,
-        requirements_linux = "//dataproxy_sdk/python:requirements_lock_{}.txt".format(python_version.replace(".", "_")),
+        requirements_lock = "//dataproxy_sdk/python:requirements_lock_{}.txt".format(python_version.replace(".", "_")),
     )
     for python_version in SUPPORTED_PYTHON_VERSIONS
 ]
@@ -58,6 +58,7 @@ bazel_dep(name = "yacl", version = "0.4.5b10-nightly-20241224")
 bazel_dep(name = "pybind11_bazel", version = "2.13.6")
 bazel_dep(name = "rules_python", version = "0.34.0")
 bazel_dep(name = "rules_proto_grpc_python", version = "5.0.1")
+
 bazel_dep(name = "grpc")
 single_version_override(
     module_name = "grpc",
