@@ -14,6 +14,7 @@
 
 module(
     name = "dataproxy",
+    version = "0.3.0b1",
     compatibility_level = 1,
 )
 
@@ -71,12 +72,7 @@ single_version_override(
     version = "1.66.0.bcr.3",
 )
 
-bazel_dep(name = "kuscia")
-git_override(
-    module_name = "kuscia",
-    commit = "a1208dcdab6682dfc6d3ae21b2d5990e917cbf2f",
-    remote = "https://github.com/secretflow/kuscia.git",
-)
+bazel_dep(name = "kuscia", version = "0.13.0b1")
 
 # # test
 bazel_dep(name = "googletest", version = "1.15.2", dev_dependency = True)
