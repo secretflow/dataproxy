@@ -40,6 +40,8 @@ import org.secretflow.dataproxy.core.service.impl.CacheTicketService;
 import org.secretflow.v1alpha1.kusciaapi.Flightdm;
 import org.secretflow.v1alpha1.kusciaapi.Flightinner;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Composite flight producer.
  *
@@ -65,6 +67,7 @@ public class CompositeFlightProducer implements FlightProducer {
     @Override
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
 
+        log.info("DoGet, ticket:{}", new String(ticket.getBytes(), StandardCharsets.UTF_8));
         try {
             this.getProducer(ticket).getStream(context, ticket, listener);
         } catch (Exception e) {

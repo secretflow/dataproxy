@@ -18,6 +18,7 @@ package org.secretflow.dataproxy.core.visitor;
 
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
@@ -31,13 +32,13 @@ import java.util.Date;
 public class IntegerValueVisitor implements ValueVisitor<Integer> {
 
     @Override
-    public Integer visit(String value) {
+    public Integer visit(@Nonnull String value) {
         return Integer.valueOf(value);
     }
 
 
     @Override
-    public Integer visit(Object value) {
+    public Integer visit(@Nonnull Object value) {
 
         if (value instanceof Integer integer) {
             return this.visit(integer);
@@ -55,12 +56,12 @@ public class IntegerValueVisitor implements ValueVisitor<Integer> {
     }
 
     @Override
-    public Integer visit(Long value) {
+    public Integer visit(@Nonnull Long value) {
         return value.intValue();
     }
 
     @Override
-    public Integer visit(Double value) {
+    public Integer visit(@Nonnull Double value) {
         return value.intValue();
     }
 
@@ -70,27 +71,27 @@ public class IntegerValueVisitor implements ValueVisitor<Integer> {
     }
 
     @Override
-    public Integer visit(Float value) {
+    public Integer visit(@Nonnull Float value) {
         return value.intValue();
     }
 
     @Override
-    public Integer visit(Short value) {
+    public Integer visit(@Nonnull Short value) {
         return value.intValue();
     }
 
     @Override
-    public Integer visit(Integer value) {
+    public Integer visit(@Nonnull Integer value) {
         return value;
     }
 
     @Override
-    public Integer visit(Date value) {
+    public Integer visit(@Nonnull Date value) {
         return (int) value.getTime();
     }
 
     @Override
-    public Integer visit(LocalDate value) {
+    public Integer visit(@Nonnull LocalDate value) {
         return (int) value.toEpochDay();
     }
 }

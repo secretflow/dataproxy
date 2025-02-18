@@ -16,6 +16,8 @@
 
 package org.secretflow.dataproxy.core.visitor;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author yuexie
  * @date 2024/11/1 20:22
@@ -28,37 +30,37 @@ public class DoubleValueVisitor implements ValueVisitor<Double> {
     }
 
     @Override
-    public Double visit(Short value) {
+    public Double visit(@Nonnull Short value) {
         return value.doubleValue();
     }
 
     @Override
-    public Double visit(Integer value) {
+    public Double visit(@Nonnull Integer value) {
         return value.doubleValue();
     }
 
     @Override
-    public Double visit(Long value) {
+    public Double visit(@Nonnull Long value) {
         return value.doubleValue();
     }
 
     @Override
-    public Double visit(Float value) {
+    public Double visit(@Nonnull Float value) {
         return value.doubleValue();
     }
 
     @Override
-    public Double visit(Double value) {
+    public Double visit(@Nonnull Double value) {
         return value;
     }
 
     @Override
-    public Double visit(String value) {
+    public Double visit(@Nonnull String value) {
         return Double.valueOf(value);
     }
 
     @Override
-    public Double visit(Object value) {
+    public Double visit(@Nonnull Object value) {
         if (value instanceof Double doubleValue) {
             return doubleValue;
         }

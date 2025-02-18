@@ -73,7 +73,7 @@ public abstract class AbstractSender<T> implements Sender<T>, AutoCloseable {
 
             for (;;) {
                 T record = recordQueue.take();
-                log.debug("recordQueue take record: {}", record);
+                log.trace("recordQueue take record: {}", record);
                 if (isOver(record)) {
                     log.debug("recordQueue take record take Count: {}", takeRecordCount);
                     break;

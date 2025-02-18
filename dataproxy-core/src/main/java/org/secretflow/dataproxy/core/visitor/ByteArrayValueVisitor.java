@@ -18,6 +18,7 @@ package org.secretflow.dataproxy.core.visitor;
 
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
@@ -29,47 +30,47 @@ import java.util.Date;
 public class ByteArrayValueVisitor implements ValueVisitor<byte[]>{
 
     @Override
-    public byte[] visit(Short value) {
+    public byte[] visit(@Nonnull Short value) {
         return this.visit((Object) value);
     }
 
     @Override
-    public byte[] visit(Integer value) {
+    public byte[] visit(@Nonnull Integer value) {
         return this.visit((Object) value);
     }
 
     @Override
-    public byte[] visit(Long value) {
+    public byte[] visit(@Nonnull Long value) {
         return this.visit((Object) value);
     }
 
     @Override
-    public byte[] visit(Float value) {
+    public byte[] visit(@Nonnull Float value) {
         return this.visit((Object) value);
     }
 
     @Override
-    public byte[] visit(Double value) {
+    public byte[] visit(@Nonnull Double value) {
         return this.visit((Object) value);
     }
 
     @Override
-    public byte[] visit(Date value) {
+    public byte[] visit(@Nonnull Date value) {
         return this.visit((Object) value);
     }
 
     @Override
-    public byte[] visit(String value) {
+    public byte[] visit(@Nonnull String value) {
         return value.getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
-    public byte[] visit(byte[] value) {
+    public byte[] visit(@Nonnull byte[] value) {
         return value;
     }
 
     @Override
-    public byte[] visit(Object value) {
+    public byte[] visit(@Nonnull Object value) {
 
         if (value instanceof byte[] bytes) {
             return this.visit(bytes);

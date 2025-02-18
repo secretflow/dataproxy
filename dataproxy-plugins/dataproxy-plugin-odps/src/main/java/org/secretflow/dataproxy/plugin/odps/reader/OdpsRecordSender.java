@@ -102,7 +102,7 @@ public class OdpsRecordSender extends AbstractSender<Record> {
     @Override
     protected void toArrowVector(Record record, @Nonnull VectorSchemaRoot root, int takeRecordCount) {
 
-        log.debug("record: {}, takeRecordCount: {}", record, takeRecordCount);
+        log.trace("record: {}, takeRecordCount: {}", record, takeRecordCount);
 
         this.initRecordColumn2FieldMap(record);
 

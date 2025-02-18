@@ -16,6 +16,8 @@
 
 package org.secretflow.dataproxy.core.visitor;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author yuexie
  * @date 2024/11/1 20:19
@@ -27,37 +29,37 @@ public class FloatValueVisitor implements ValueVisitor<Float>{
     }
 
     @Override
-    public Float visit(Short value) {
+    public Float visit(@Nonnull Short value) {
         return value.floatValue();
     }
 
     @Override
-    public Float visit(Integer value) {
+    public Float visit(@Nonnull Integer value) {
         return value.floatValue();
     }
 
     @Override
-    public Float visit(Long value) {
+    public Float visit(@Nonnull Long value) {
         return value.floatValue();
     }
 
     @Override
-    public Float visit(Float value) {
+    public Float visit(@Nonnull Float value) {
         return value;
     }
 
     @Override
-    public Float visit(Double value) {
+    public Float visit(@Nonnull Double value) {
         return value.floatValue();
     }
 
     @Override
-    public Float visit(String value) {
+    public Float visit(@Nonnull String value) {
         return Float.valueOf(value);
     }
 
     @Override
-    public Float visit(Object value) {
+    public Float visit(@Nonnull Object value) {
 
         if (value instanceof Float floatValue) {
             return this.visit(floatValue);

@@ -40,9 +40,9 @@ public class GrpcUtils {
             return Any.parseFrom(source);
         } catch (final InvalidProtocolBufferException e) {
             throw CallStatus.INVALID_ARGUMENT
-                .withDescription("Received invalid message from remote.")
-                .withCause(e)
-                .toRuntimeException();
+                    .withDescription("Received invalid message from remote.")
+                    .withCause(e)
+                    .toRuntimeException();
         }
     }
 
@@ -59,9 +59,9 @@ public class GrpcUtils {
             return source.unpack(as);
         } catch (final InvalidProtocolBufferException e) {
             throw CallStatus.INVALID_ARGUMENT
-                .withDescription("Provided message cannot be unpacked as " + as.getName() + ": " + e)
-                .withCause(e)
-                .toRuntimeException();
+                    .withDescription("Provided message cannot be unpacked as " + as.getName() + ": " + e)
+                    .withCause(e)
+                    .toRuntimeException();
         }
     }
 

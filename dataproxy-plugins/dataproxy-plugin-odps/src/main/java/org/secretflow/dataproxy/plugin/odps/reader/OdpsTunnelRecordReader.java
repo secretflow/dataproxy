@@ -45,7 +45,10 @@ public class OdpsTunnelRecordReader extends AbstractReader<TaskConfig, Record> {
 
     @Override
     protected void read(TaskConfig param) {
-        log.info("Start read odps tunnel record reader. download session: {} start: {}, count: {}", downloadSession.getId(), param.getStartIndex(), param.getCount());
+        log.info("Start read odps tunnel record reader. download session: {} start: {}, count: {}",
+                downloadSession.getId(),
+                param.getStartIndex(),
+                param.getCount());
         try (TunnelRecordReader records =
                      downloadSession.openRecordReader(param.getStartIndex(), param.getCount(), param.isCompress())) {
 
@@ -56,12 +59,14 @@ public class OdpsTunnelRecordReader extends AbstractReader<TaskConfig, Record> {
                 this.put(record);
                 recordCount++;
 
-                if (recordCount % 10000 == 0) {
+                // Every 10,000 entries is counted whether the task has been returned, and if it has been returned, the read will be interrupted
+                if (recordCount % 10_000 == 0) {
                     if (Thread.currentThread().isInterrupted()) {
-                        log.info("OdpsTunnelRecordReader read interrupted. recordCount: {}", recordCount);
+                        log.info("OdpsTunnelRecordReader read interrupted.  download sessionID: {} recordCount: {}", downloadSession.getId(), recordCount);
                         throw new InterruptedException("OdpsTunnelRecordReader read interrupted.");
                     }
                     tempInstant = Instant.now();
+                    // 10s print the progress once
                     if (tempInstant.getEpochSecond() - startInstant.getEpochSecond() > 10) {
                         log.info("OdpsTunnelRecordReader read: download sessionID: {} recordCount: {}", downloadSession.getId(), recordCount);
                         startInstant = tempInstant;
@@ -69,7 +74,11 @@ public class OdpsTunnelRecordReader extends AbstractReader<TaskConfig, Record> {
 
                 }
             }
-            log.info("Read odps tunnel record reader finish. recordCount: {}", recordCount);
+            log.info("Read odps tunnel record reader finish. download sessionID: {}, start: {}, count: {}, actual number of records: {}",
+                    downloadSession.getId(),
+                    param.getStartIndex(),
+                    param.getCount(),
+                    recordCount);
         } catch (Exception e) {
             throw DataproxyException.of(DataproxyErrorCode.ODPS_ERROR, "ODPS read error", e);
         }

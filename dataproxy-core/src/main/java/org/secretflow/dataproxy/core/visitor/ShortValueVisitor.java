@@ -16,6 +16,8 @@
 
 package org.secretflow.dataproxy.core.visitor;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author yuexie
  * @date 2024/11/1 20:24
@@ -27,37 +29,37 @@ public class ShortValueVisitor implements ValueVisitor<Short> {
     }
 
     @Override
-    public Short visit(Short value) {
+    public Short visit(@Nonnull Short value) {
         return value;
     }
 
     @Override
-    public Short visit(Integer value) {
+    public Short visit(@Nonnull Integer value) {
         return value.shortValue();
     }
 
     @Override
-    public Short visit(Long value) {
+    public Short visit(@Nonnull Long value) {
         return value.shortValue();
     }
 
     @Override
-    public Short visit(Float value) {
+    public Short visit(@Nonnull Float value) {
         return value.shortValue();
     }
 
     @Override
-    public Short visit(Double value) {
+    public Short visit(@Nonnull Double value) {
         return value.shortValue();
     }
 
     @Override
-    public Short visit(String value) {
+    public Short visit(@Nonnull String value) {
         return Short.valueOf(value);
     }
 
     @Override
-    public Short visit(Object value) {
+    public Short visit(@Nonnull Object value) {
 
         if (value instanceof Short shortValue) {
             return this.visit(shortValue);

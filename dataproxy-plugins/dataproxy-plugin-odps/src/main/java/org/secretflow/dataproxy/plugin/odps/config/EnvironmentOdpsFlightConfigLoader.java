@@ -41,18 +41,13 @@ public class EnvironmentOdpsFlightConfigLoader implements ConfigLoader {
     public void loadProperties(Properties properties) {
 
         try {
-            log.info("Load odps flight config from system env.");
-            Optional<Integer> maxEndpoint = EnvVarUtils.getInt(OdpsConfigConstant.ConfigKey.MAX_FLIGHT_ENDPOINT);
-            if (maxEndpoint.isPresent()) {
-                log.debug("Load odps flight config `MAX_FLIGHT_ENDPOINT` from system env, limits range 1 to 5. key: {}, value: {}", OdpsConfigConstant.ConfigKey.MAX_FLIGHT_ENDPOINT, maxEndpoint.get());
-                properties.put(OdpsConfigConstant.ConfigKey.MAX_FLIGHT_ENDPOINT, EnvVarUtils.getEffectiveValue(maxEndpoint.get(), 1, 5));
+
+            Optional<Long> lifeCycle = EnvVarUtils.getLong(OdpsConfigConstant.ConfigKey.ODPS_TABLE_LIFECYCLE_VALUE);
+            if (lifeCycle.isPresent()) {
+                log.debug("Load odps flight config `ODPS_TABLE_LIFECYCLE_VALUE` from system env, limits range 1 to 37231. key: {}, value:{}", OdpsConfigConstant.ConfigKey.ODPS_TABLE_LIFECYCLE_VALUE, lifeCycle.get());
+                properties.put(OdpsConfigConstant.ConfigKey.ODPS_TABLE_LIFECYCLE_VALUE, EnvVarUtils.getEffectiveValue(lifeCycle.get(), 1L, 37231L));
             }
 
-            Optional<Long> batchThreshold = EnvVarUtils.getLong(OdpsConfigConstant.ConfigKey.FLIGHT_ENDPOINT_UPGRADE_TO_MULTI_BATCH_THRESHOLD);
-            if (batchThreshold.isPresent()) {
-                log.debug("Load odps flight config `MAX_FLIGHT_ENDPOINT` from system env, limits range 300,000 to 100,000,000. key: {}, value: {}", OdpsConfigConstant.ConfigKey.FLIGHT_ENDPOINT_UPGRADE_TO_MULTI_BATCH_THRESHOLD, batchThreshold.get());
-                properties.put(OdpsConfigConstant.ConfigKey.FLIGHT_ENDPOINT_UPGRADE_TO_MULTI_BATCH_THRESHOLD, EnvVarUtils.getEffectiveValue(batchThreshold.get(), 300_000L, 100_000_000L));
-            }
         } catch (Exception e) {
             log.error("Failed to load odps flight config from system env. This error will be ignored and some configurations will not take effect. error: {}", e.getMessage(), e);
         }

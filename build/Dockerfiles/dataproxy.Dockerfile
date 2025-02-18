@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/secretpad-base-lite:0.3
+FROM secretflow-registry.cn-hangzhou.cr.aliyuncs.com/secretflow/java-base:17.0.13-jre-anolis23
 
 ENV LANG=C.UTF-8
 WORKDIR /app

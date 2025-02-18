@@ -16,6 +16,7 @@
 
 package org.secretflow.dataproxy.plugin.odps.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -29,6 +30,7 @@ import org.secretflow.dataproxy.plugin.odps.reader.OdpsDoGetContext;
 @ToString
 public class TaskConfig {
 
+    @JsonIgnore
     private final OdpsDoGetContext context;
 
     /**
@@ -51,6 +53,10 @@ public class TaskConfig {
      * Whether to compress
      */
     private final boolean compress;
+
+    @Getter
+    @Setter
+    private Throwable error;
 
     public TaskConfig(OdpsDoGetContext context, long startIndex, long count) {
         this(context, startIndex, count, true);

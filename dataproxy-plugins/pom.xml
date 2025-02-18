@@ -25,5 +25,9 @@
             <groupId>org.secretflow</groupId>
             <artifactId>dataproxy-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.secretflow</groupId>
+            <artifactId>dataproxy-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

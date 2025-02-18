@@ -35,27 +35,27 @@ public class BooleanValueVisitor implements ValueVisitor<Boolean>{
     }
 
     @Override
-    public Boolean visit(Integer value) {
+    public Boolean visit(@Nonnull Integer value) {
         return value > 0;
     }
 
     @Override
-    public Boolean visit(Long value) {
+    public Boolean visit(@Nonnull Long value) {
         return value > 0;
     }
 
     @Override
-    public Boolean visit(Float value) {
+    public Boolean visit(@Nonnull Float value) {
         return value > 0;
     }
 
     @Override
-    public Boolean visit(Double value) {
+    public Boolean visit(@Nonnull Double value) {
         return value > 0;
     }
 
     @Override
-    public Boolean visit(String value) {
+    public Boolean visit(@Nonnull String value) {
         return switch (value.toLowerCase()) {
             case "true", "t", "yes", "y", "1" -> true;
 
@@ -66,7 +66,7 @@ public class BooleanValueVisitor implements ValueVisitor<Boolean>{
     }
 
     @Override
-    public Boolean visit(Object value) {
+    public Boolean visit(@Nonnull Object value) {
         if (value instanceof Boolean booleanValue) {
             return booleanValue;
         }

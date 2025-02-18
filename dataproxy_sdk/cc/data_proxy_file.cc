@@ -14,6 +14,7 @@
 
 #include "dataproxy_sdk/cc/data_proxy_file.h"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -21,6 +22,7 @@
 #include "arrow/flight/api.h"
 #include "arrow/util/byte_size.h"
 #include "spdlog/spdlog.h"
+#include "yacl/utils/scope_guard.h"
 
 #include "dataproxy_sdk/cc/data_proxy_conn.h"
 #include "dataproxy_sdk/cc/exception.h"
@@ -49,6 +51,7 @@ class DataProxyFile::Impl {
 
   FileHelpWrite::Options BuildWriteOptions(const proto::DownloadInfo& info) {
     FileHelpWrite::Options options = FileHelpWrite::Options::Defaults();
+    options.batch_size = 1024 * 1024;
     if (info.has_orc_info()) {
       options.compression =
           static_cast<arrow::Compression::type>(info.orc_info().compression());
@@ -56,6 +59,102 @@ class DataProxyFile::Impl {
       options.stripe_size = info.orc_info().stripe_size();
     }
     return options;
+  }
+
+  static void StreamToFile(
+      std::shared_ptr<FlightStreamReaderWrapper>& stream_reader, size_t index,
+      std::unique_ptr<FileHelpWrite>& file_write,
+      std::exception_ptr& exception_ptr) {
+    while (true) {
+      auto record_batch = stream_reader->ReadRecordBatch(index);
+      if (record_batch == nullptr || exception_ptr) {
+        // read finished
+        break;
+      }
+      file_write->DoWrite(record_batch);
+    }
+  }
+
+  void DoDownload(std::shared_ptr<FlightStreamReaderWrapper> stream_reader,
+                  std::unique_ptr<FileHelpWrite> file_write,
+                  const std::string& file_path, proto::FileFormat file_format) {
+    std::vector<std::thread> threads;
+    std::vector<std::string> tmp_files;
+    std::exception_ptr exception_ptr;
+    for (size_t i = 1; i < stream_reader->GetSize(); ++i) {
+      std::string tmp_file_name = file_path + "." + std::to_string(i);
+      tmp_files.emplace_back(tmp_file_name);
+      threads.emplace_back(std::thread(
+          [&exception_ptr, &stream_reader, i, tmp_file_name, file_format]() {
+            SPDLOG_INFO("start download thread: {}", tmp_file_name);
+            try {
+              auto options = FileHelpWrite::Options::Defaults();
+              options.csv_include_header = false;
+              options.batch_size = 1024 * 1024;
+              std::unique_ptr<FileHelpWrite> tmp_file_write =
+                  FileHelpWrite::Make(file_format, tmp_file_name, options);
+              StreamToFile(stream_reader, i, tmp_file_write, exception_ptr);
+              tmp_file_write->DoClose();
+              SPDLOG_INFO("{} download completed.", tmp_file_name);
+            } catch (...) {
+              exception_ptr = std::current_exception();
+            }
+          }));
+    }
+    SPDLOG_INFO("main thread download: {}", file_path);
+    try {
+      StreamToFile(stream_reader, 0, file_write, exception_ptr);
+      SPDLOG_INFO("{} download completed.", file_path);
+    } catch (...) {
+      exception_ptr = std::current_exception();
+    }
+    for (auto& thread : threads) {
+      thread.join();
+    }
+    ON_SCOPE_EXIT([&tmp_files] {
+      for (auto& tmp_file : tmp_files) {
+        std::filesystem::remove(tmp_file);
+      }
+    });
+    if (exception_ptr) {
+      std::rethrow_exception(exception_ptr);
+    }
+    if (tmp_files.size() > 0) {
+      // DP按照endpoints顺序进行数据拆分，所以合并也按endpoints顺序进行合并
+      SPDLOG_INFO("start merging {}.", file_path);
+      if (file_format == proto::FileFormat::ORC) {
+        auto read_options = FileHelpRead::Options::Defaults();
+        for (auto& tmp_file : tmp_files) {
+          // 当临时文件为空时，可能是DP返回的某个节点返回的数据为空，为正常情况
+          if (std::filesystem::file_size(tmp_file) == 0) {
+            SPDLOG_INFO("{} is an empty file.", tmp_file);
+            continue;
+          }
+          auto file_reader =
+              FileHelpRead::Make(file_format, tmp_file, read_options);
+          while (true) {
+            std::shared_ptr<arrow::RecordBatch> result_batch;
+            file_reader->DoRead(&result_batch);
+            if (result_batch == nullptr) {
+              break;
+            }
+            file_write->DoWrite(result_batch);
+          }
+          file_reader->DoClose();
+        }
+      } else {
+        std::ofstream ofs(file_path, std::ios_base::app);
+        for (auto& tmp_file : tmp_files) {
+          std::ifstream tmp_in(tmp_file);
+          std::string line;
+          while (std::getline(tmp_in, line)) {
+            ofs << line << '\n';
+          }
+        }
+      }
+      SPDLOG_INFO("{} merging completed.", file_path);
+    }
+    file_write->DoClose();
   }
 
   void DownloadFile(const proto::DownloadInfo& info,
@@ -79,16 +178,7 @@ class DataProxyFile::Impl {
         empty_batch, arrow::RecordBatch::MakeEmpty(stream_reader->GetSchema()));
     file_write->DoWrite(empty_batch);
 
-    while (true) {
-      auto record_batch = stream_reader->ReadRecordBatch();
-      if (record_batch == nullptr) {
-        // read finished
-        break;
-      }
-      file_write->DoWrite(record_batch);
-    }
-
-    file_write->DoClose();
+    DoDownload(stream_reader, std::move(file_write), file_path, file_format);
   }
 
   FileHelpRead::Options BuildReadOptions(const proto::UploadInfo& info) {

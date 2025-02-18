@@ -76,6 +76,8 @@ class CSVFileWrite : public FileHelpWrite {
               const FileHelpWrite::Options& options) {
     options_ = arrow::csv::WriteOptions::Defaults();
     options_.quoting_style = arrow::csv::QuotingStyle::None;
+    options_.include_header = options.csv_include_header;
+    options_.batch_size = options.batch_size;
     ASSIGN_ARROW_OR_THROW(out_stream_,
                           arrow::io::FileOutputStream::Open(file_name));
   }
@@ -107,6 +109,7 @@ class ORCFileWrite : public FileHelpWrite {
     write_opts.compression = options.compression;
     write_opts.compression_block_size = options.compression_block_size;
     write_opts.stripe_size = options.stripe_size;
+    write_opts.batch_size = options.batch_size;
     ASSIGN_ARROW_OR_THROW(orc_writer_,
                           arrow::adapters::orc::ORCFileWriter::Open(
                               out_stream_.get(), write_opts));
@@ -252,7 +255,6 @@ class ORCFileRead : public FileHelpRead {
     for (auto& pair : options.column_types) {
       include_names_.push_back(pair.first);
     }
-
     ASSIGN_ARROW_OR_THROW(file_stream_,
                           arrow::io::ReadableFile::Open(file_name));
     ASSIGN_ARROW_OR_THROW(orc_reader_,

@@ -23,8 +23,7 @@ namespace dataproxy_sdk {
 
 class DataMeshMock {
  public:
-  arrow::Status StartServer(const std::string& dm_address,
-                            bool open_dp = false);
+  arrow::Status StartServer(const std::string& dm_address, int dp_num = 0);
   arrow::Status CloseServer();
 
  public:

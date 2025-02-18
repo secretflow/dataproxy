@@ -70,6 +70,7 @@ header: # <1>
     - 'pyproject.toml'
     - 'setup.cfg'
     - 'dataproxy-manager/src/main/java/org/secretflow/dataproxy/manager/connector/rdbms/adaptor'
+    - '**/src/main/resources/META-INF/services/**'
 
   comment: never # <9>
 

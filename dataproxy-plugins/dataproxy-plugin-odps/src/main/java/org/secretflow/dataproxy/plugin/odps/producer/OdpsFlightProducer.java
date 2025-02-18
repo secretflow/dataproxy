@@ -111,14 +111,11 @@ public class OdpsFlightProducer extends NoOpFlightProducer implements DataProxyF
                 endpointList = Collections.singletonList(
                         new FlightEndpoint(new Ticket(bytes), FlightServerContext.getInstance().getFlightServerConfig().getLocation())
                 );
-            } else if (OdpsTypeEnum.FILE.equals(commandConfig.getOdpsTypeEnum())) {
+            } else {
                 bytes = ticketService.generateTicket(ParamWrapper.of(getProducerName(), commandConfig));
                 endpointList = Collections.singletonList(
                         new FlightEndpoint(new Ticket(bytes), FlightServerContext.getInstance().getFlightServerConfig().getLocation())
                 );
-            } else {
-                OdpsDoGetContext odpsDoGetContext = new OdpsDoGetContext(commandConfig);
-                endpointList = odpsDoGetContext.getFlightEndpoints(getProducerName());
             }
 
             // Only the protocol is used, and the concrete schema is not returned here.
@@ -138,10 +135,16 @@ public class OdpsFlightProducer extends NoOpFlightProducer implements DataProxyF
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
 
         ParamWrapper paramWrapper = ticketService.getParamWrapper(ticket.getBytes());
-
         ArrowReader odpsReader = null;
         try {
-            if (paramWrapper.param() instanceof OdpsCommandConfig<?> odpsCommandConfig) {
+
+            Object param = paramWrapper.param();
+
+            if (param == null) {
+                throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "The odps read parameter is null");
+            }
+
+            if (param instanceof OdpsCommandConfig<?> odpsCommandConfig) {
                 if (OdpsTypeEnum.FILE.equals(odpsCommandConfig.getOdpsTypeEnum())) {
                     Object commandConfig = odpsCommandConfig.getCommandConfig();
                     if (commandConfig instanceof OdpsTableConfig odpsTableConfig) {
@@ -150,12 +153,19 @@ public class OdpsFlightProducer extends NoOpFlightProducer implements DataProxyF
                         throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "The odps read parameter is invalid, type url: " + commandConfig.getClass());
                     }
                 } else {
-                    throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "The odps read parameter is invalid, type url: " + paramWrapper.param().getClass());
+                    OdpsDoGetContext odpsDoGetContext = new OdpsDoGetContext(odpsCommandConfig, false);
+                    List<TaskConfig> taskConfigs = odpsDoGetContext.getTaskConfigs();
+
+                    if (taskConfigs.isEmpty()) {
+                        throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "The odps read parameter is invalid, taskConfigs size is 0");
+                    }
+
+                    odpsReader = new OdpsReader(new RootAllocator(), taskConfigs.get(0));
                 }
-            } else if (paramWrapper.param() instanceof TaskConfig taskConfig) {
+            } else if (param instanceof TaskConfig taskConfig) {
                 odpsReader = new OdpsReader(new RootAllocator(), taskConfig);
             } else {
-                throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "The odps read parameter is invalid, type url: " + paramWrapper.param().getClass());
+                throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "The odps read parameter is invalid, type url: " + param.getClass());
             }
 
             listener.start(odpsReader.getVectorSchemaRoot());

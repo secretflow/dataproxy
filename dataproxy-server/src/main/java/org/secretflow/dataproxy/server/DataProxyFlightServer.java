@@ -24,6 +24,7 @@ import org.secretflow.dataproxy.core.config.FlightServerConfig;
 import org.secretflow.dataproxy.core.spi.producer.DataProxyFlightProducer;
 import org.secretflow.dataproxy.server.flight.CompositeFlightProducer;
 import org.secretflow.dataproxy.server.flight.ProducerRegistry;
+import org.secretflow.dataproxy.server.flight.middleware.FlightServerTraceMiddleware;
 
 import java.io.IOException;
 import java.util.ServiceLoader;

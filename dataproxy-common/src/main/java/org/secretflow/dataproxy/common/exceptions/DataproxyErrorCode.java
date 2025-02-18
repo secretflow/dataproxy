@@ -92,6 +92,8 @@ public enum DataproxyErrorCode {
     ODPS_PARTITION_NOT_EXISTS(ErrorLevels.ERROR, ErrorTypes.BIZ, "606", "odps partition not exists"),
     ODPS_TABLE_NOT_EMPTY(ErrorLevels.ERROR, ErrorTypes.BIZ, "607", "odps table not empty"),
     ODPS_TABLE_NOT_SUPPORT_PARTITION(ErrorLevels.ERROR, ErrorTypes.BIZ, "608", "odps table not support partition"),
+    ODPS_TASK_NOT_READY(ErrorLevels.ERROR, ErrorTypes.BIZ, "609", "odps task not ready"),
+    ODPS_TASK_NOT_RUN(ErrorLevels.ERROR, ErrorTypes.BIZ, "610", "odps task not run"),
 
 
     //============================= 第三方错误【900-999】==================================

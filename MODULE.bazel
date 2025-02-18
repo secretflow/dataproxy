@@ -14,7 +14,6 @@
 
 module(
     name = "dataproxy",
-    version = "0.3.0b1",
     compatibility_level = 1,
 )
 
@@ -45,14 +44,13 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
     pip.parse(
         hub_name = "dataproxy_sdk_pip",
         python_version = python_version,
-        requirements_lock = "//dataproxy_sdk/python:requirements_lock_{}.txt".format(python_version.replace(".", "_")),
+        requirements_linux = "//dataproxy_sdk/python:requirements_lock_{}.txt".format(python_version.replace(".", "_")),
     )
     for python_version in SUPPORTED_PYTHON_VERSIONS
 ]
 
 use_repo(pip, "dataproxy_sdk_pip")
 
-bazel_dep(name = "apple_support", version = "1.17.1")
 bazel_dep(name = "arrow", version = "14.0.2")
 bazel_dep(name = "rules_foreign_cc", version = "0.13.0")
 bazel_dep(name = "spdlog", version = "1.14.1")
@@ -60,7 +58,7 @@ bazel_dep(name = "yacl", version = "0.4.5b10-nightly-20241224")
 bazel_dep(name = "pybind11_bazel", version = "2.13.6")
 bazel_dep(name = "rules_python", version = "0.34.0")
 bazel_dep(name = "rules_proto_grpc_python", version = "5.0.1")
-bazel_dep(name = "rules_cc", version = "0.0.12")
+
 bazel_dep(name = "grpc")
 single_version_override(
     module_name = "grpc",
@@ -72,7 +70,12 @@ single_version_override(
     version = "1.66.0.bcr.3",
 )
 
-bazel_dep(name = "kuscia", version = "0.13.0b1")
+bazel_dep(name = "kuscia")
+git_override(
+    module_name = "kuscia",
+    commit = "a1208dcdab6682dfc6d3ae21b2d5990e917cbf2f",
+    remote = "https://github.com/secretflow/kuscia.git",
+)
 
 # # test
 bazel_dep(name = "googletest", version = "1.15.2", dev_dependency = True)

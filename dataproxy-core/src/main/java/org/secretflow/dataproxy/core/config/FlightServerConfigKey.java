@@ -20,10 +20,10 @@ package org.secretflow.dataproxy.core.config;
  * @author yuexie
  * @date 2024/10/30 16:11
  **/
-public interface FlightServerConfigKey {
+public class FlightServerConfigKey {
 
-    String HOST = "SERVICE_HOST";
+    public static final String HOST = "SERVICE_HOST";
 
-    String PORT = "SERVICE_PORT";
+    public static final String PORT = "SERVICE_PORT";
 
 }

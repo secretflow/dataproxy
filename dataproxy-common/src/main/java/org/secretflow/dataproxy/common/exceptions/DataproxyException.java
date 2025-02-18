@@ -16,7 +16,10 @@
 
 package org.secretflow.dataproxy.common.exceptions;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import java.io.Serial;
 
 /**
  * dataproxy exception
@@ -24,8 +27,13 @@ import lombok.extern.slf4j.Slf4j;
  * @author muhong
  * @date 2023-09-14 14:23
  */
+@Getter
 @Slf4j
 public class DataproxyException extends RuntimeException {
+
+    @Serial
+    private static final long serialVersionUID = -9012364334166955517L;
+
     private final DataproxyErrorCode errorCode;
 
     public DataproxyException(DataproxyErrorCode errorCode) {
@@ -62,10 +70,6 @@ public class DataproxyException extends RuntimeException {
 
     public static DataproxyException of(DataproxyErrorCode errorCode, String message, Throwable cause) {
         return new DataproxyException(errorCode, message, cause);
-    }
-
-    public DataproxyErrorCode getErrorCode() {
-        return errorCode;
     }
 
     public String getDescription() {

@@ -16,11 +16,75 @@
 
 package org.secretflow.dataproxy.core.param;
 
+import javax.annotation.Nullable;
+
 /**
  * @author yuexie
  * @date 2024/10/31 15:59
  **/
-public record ParamWrapper(String producerKey, Object param) {
+public final class ParamWrapper {
+
+    private final String producerKey;
+    private volatile Object param;
+
+    public ParamWrapper(String producerKey, Object param) {
+        this.producerKey = producerKey;
+        this.param = param;
+    }
+
+    public String producerKey() {
+        return producerKey;
+    }
+
+    public Object param() throws InterruptedException {
+        if (param == null ) {
+            synchronized (this) {
+                if (param == null) {
+                    this.wait();
+                }
+            }
+        }
+        return param;
+    }
+
+    public Object param(long timeoutMillis) throws InterruptedException {
+
+        if (param == null) {
+            synchronized (this) {
+                if (param == null) {
+                    this.wait(timeoutMillis);
+                }
+            }
+        }
+        return param;
+    }
+
+    /**
+     * set param <br>
+     * - if param is null, set it to realValue<br>
+     * - if param is not null, throw exception
+     *
+     * @param realValue real value
+     * @throws IllegalArgumentException if param `realValue` is null.
+     */
+    public void setParamIfAbsent(Object realValue) throws IllegalArgumentException {
+
+        if (this.param == null) {
+            synchronized (this) {
+                if (this.param == null) {
+                    if (realValue == null) {
+                        throw new IllegalArgumentException("realValue is null");
+                    }
+                    this.param = realValue;
+                    this.notifyAll();
+                } else {
+                    throw new IllegalArgumentException("param is not allowed to be modified");
+                }
+            }
+        } else {
+            throw new IllegalArgumentException("param is not allowed to be modified");
+        }
+    }
 
     /**
      * of param
@@ -28,10 +92,7 @@ public record ParamWrapper(String producerKey, Object param) {
      * @param param param
      * @return param wrapper
      */
-    public static ParamWrapper of(String producerKey, Object param) {
-        if (param == null) {
-            throw new IllegalArgumentException("param is null");
-        }
+    public static ParamWrapper of(String producerKey, @Nullable Object param) {
         return new ParamWrapper(producerKey, param);
     }
 

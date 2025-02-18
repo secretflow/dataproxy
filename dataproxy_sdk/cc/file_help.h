@@ -33,7 +33,10 @@ class FileHelpWrite {
     int64_t compression_block_size = 64 * 1024;
     // only orc use by sf
     int64_t stripe_size = 64 * 1024 * 1024;
-
+    // Both CSV and ORC use this parameter.
+    // The default value is the same as WriteOptions in arrow.
+    int64_t batch_size = 1024;
+    bool csv_include_header = true;
     static Options Defaults();
   };
 

@@ -24,6 +24,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.secretflow.dataproxy.plugin.odps.config.TaskConfig;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * @author yuexie
@@ -51,6 +52,15 @@ public class OdpsReader extends ArrowReader {
      */
     @Override
     public boolean loadNextBatch() throws IOException {
+        Optional.ofNullable(taskConfig.getError()).ifPresent(e -> {
+            log.error("TaskConfig is happened error: {}", e.getMessage());
+            throw new RuntimeException(e);
+        });
+
+        if (taskConfig.getCount() == 0) {
+            log.warn("TaskConfig count is 0, skip read data");
+            return false;
+        }
 
         if (odpsDoGetTaskContext == null) {
             prepare();
@@ -85,7 +95,9 @@ public class OdpsReader extends ArrowReader {
     @Override
     protected void closeReadSource() {
         try {
-            odpsDoGetTaskContext.close();
+            if (odpsDoGetTaskContext != null) {
+                odpsDoGetTaskContext.close();
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {

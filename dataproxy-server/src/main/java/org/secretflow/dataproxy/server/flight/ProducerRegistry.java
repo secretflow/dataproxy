@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author yuexie
  * @date 2024/10/30 16:35
  **/
-public class ProducerRegistry {
+public final class ProducerRegistry {
 
     private static final ProducerRegistry INSTANCE = new ProducerRegistry();
 

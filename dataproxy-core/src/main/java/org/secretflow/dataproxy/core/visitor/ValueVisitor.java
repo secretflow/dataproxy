@@ -16,8 +16,7 @@
 
 package org.secretflow.dataproxy.core.visitor;
 
-import jakarta.validation.constraints.NotNull;
-
+import javax.annotation.Nonnull;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,59 +29,59 @@ import java.util.Date;
  **/
 public interface ValueVisitor<T> {
 
-    default T visit(@NotNull Integer value) {
+    default T visit(@Nonnull Integer value) {
         throw new UnsupportedOperationException("Integer not supported");
     }
 
-    default T visit(@NotNull Short value) {
+    default T visit(@Nonnull Short value) {
         throw new UnsupportedOperationException("Short not supported");
     }
 
-    default T visit(@NotNull Long value) {
+    default T visit(@Nonnull Long value) {
         throw new UnsupportedOperationException("Long not supported");
     }
 
-    default T visit(@NotNull Double value) {
+    default T visit(@Nonnull Double value) {
         throw new UnsupportedOperationException("Double not supported");
     }
 
-    default T visit(@NotNull Float value) {
+    default T visit(@Nonnull Float value) {
         throw new UnsupportedOperationException("Float not supported");
     }
 
-    default T visit(@NotNull boolean value) {
+    default T visit(boolean value) {
         throw new UnsupportedOperationException("Boolean not supported");
     }
 
-    default T visit(@NotNull Date value) {
+    default T visit(@Nonnull Date value) {
         throw new UnsupportedOperationException("Date not supported");
     }
 
-    default T visit(@NotNull String value) {
+    default T visit(@Nonnull String value) {
         throw new UnsupportedOperationException("String not supported");
     }
 
-    default T visit(@NotNull byte[] value) {
+    default T visit(@Nonnull byte[] value) {
         throw new UnsupportedOperationException("byte[] not supported");
     }
 
-    default T visit(@NotNull Object value) {
+    default T visit(@Nonnull Object value) {
         throw new UnsupportedOperationException("Object not supported");
     }
 
-    default T visit(@NotNull ZonedDateTime value) {
+    default T visit(@Nonnull ZonedDateTime value) {
         throw new UnsupportedOperationException("Object not supported");
     }
 
-    default T visit(@NotNull LocalDateTime value) {
+    default T visit(@Nonnull LocalDateTime value) {
         throw new UnsupportedOperationException("Object not supported");
     }
 
-    default T visit(@NotNull LocalDate value) {
+    default T visit(@Nonnull LocalDate value) {
         throw new UnsupportedOperationException("Object not supported");
     }
 
-    default T visit(@NotNull Instant value) {
+    default T visit(@Nonnull Instant value) {
         throw new UnsupportedOperationException("Object not supported");
     }
 

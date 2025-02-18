@@ -20,16 +20,16 @@ import logging
 import hashlib
 
 
-def get_file_md5(fname):
-    m = hashlib.md5()  # 创建md5对象
+def get_file_sha256(fname):
+    m = hashlib.sha256()  # 创建sha256对象
     with open(fname, "rb") as fobj:
         while True:
             data = fobj.read(4096)
             if not data:
                 break
-            m.update(data)  # 更新md5对象
+            m.update(data)  # 更新sha256对象
 
-    return m.hexdigest()  # 返回md5对象
+    return m.hexdigest()  # 返回sha256对象
 
 
 class FileAdapter:
@@ -49,9 +49,9 @@ class FileAdapter:
         self.file.download_file(info.SerializeToString(), file_path, file_format)
 
         size = os.path.getsize(file_path)
-        md5 = get_file_md5(file_path)
+        sha256 = get_file_sha256(file_path)
         logging.info(
-            f"dataproxy sdk: download_file[{file_path}], type[{file_format}], size[{size}], md5[{md5}]"
+            f"dataproxy sdk: download_file[{file_path}], type[{file_format}], size[{size}], sha256[{sha256}]"
         )
 
     def upload_file(
@@ -64,7 +64,7 @@ class FileAdapter:
         self.file.upload_file(info.SerializeToString(), file_path, file_format)
 
         size = os.path.getsize(file_path)
-        md5 = get_file_md5(file_path)
+        sha256 = get_file_sha256(file_path)
         logging.info(
-            f"dataproxy sdk: upload_file[{file_path}], type[{file_format}], size[{size}], md5[{md5}]"
+            f"dataproxy sdk: upload_file[{file_path}], type[{file_format}], size[{size}], sha256[{sha256}]"
         )

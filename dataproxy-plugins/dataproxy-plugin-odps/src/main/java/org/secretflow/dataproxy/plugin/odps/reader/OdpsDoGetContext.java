@@ -24,17 +24,12 @@ import com.aliyun.odps.task.SQLTask;
 import com.aliyun.odps.tunnel.InstanceTunnel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.arrow.flight.FlightEndpoint;
-import org.apache.arrow.flight.Ticket;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
-import org.secretflow.dataproxy.core.config.FlightServerContext;
+import org.secretflow.dataproxy.common.utils.JsonUtils;
 import org.secretflow.dataproxy.core.param.ParamWrapper;
-import org.secretflow.dataproxy.core.service.TicketService;
-import org.secretflow.dataproxy.core.service.impl.CacheTicketService;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsCommandConfig;
-import org.secretflow.dataproxy.plugin.odps.config.OdpsConfigConstant;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsConnectConfig;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsTableConfig;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsTableQueryConfig;
@@ -44,9 +39,16 @@ import org.secretflow.dataproxy.plugin.odps.constant.OdpsTypeEnum;
 import org.secretflow.dataproxy.plugin.odps.utils.OdpsUtil;
 import org.secretflow.v1alpha1.common.Common;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Pattern;
 
 /**
@@ -67,40 +69,80 @@ public class OdpsDoGetContext {
     @Getter
     private Schema schema;
 
+    private final boolean isLazyMode;
+
+    private Future<?> doSqlTaskFuture = null;
+
+    private final CountDownLatch sqlTaskRunCountDownLatch = new CountDownLatch(1);
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+
+    private final Map<byte[], ParamWrapper> ticketWrapperMap = new ConcurrentHashMap<>();
+    private final ReadWriteLock tickerWrapperMapRwLock = new ReentrantReadWriteLock();
 
     public OdpsDoGetContext(OdpsCommandConfig<?> config) {
+        this(config, true);
+    }
+
+    public OdpsDoGetContext(OdpsCommandConfig<?> config, boolean isLazyMode) {
         this.odpsCommandConfig = config;
+        this.isLazyMode = isLazyMode;
         prepare();
     }
 
     private void prepare() {
 
         // 2. init download session
+        OdpsConnectConfig odpsConnectConfig = odpsCommandConfig.getOdpsConnectConfig();
+        Odps odps = OdpsUtil.initOdps(odpsConnectConfig);
+        String querySql;
+
+        if (odpsCommandConfig instanceof ScqlCommandJobConfig scqlReadJobConfig) {
+            querySql = scqlReadJobConfig.getCommandConfig();
+        } else if (odpsCommandConfig instanceof OdpsTableQueryConfig odpsTableQueryConfig) {
+            OdpsTableConfig tableConfig = odpsTableQueryConfig.getCommandConfig();
+            // If the DomainData is parsed to SQL,
+            // the query is performed by the field of the DomainData and the field value of the column of the DomainData is returned
+            querySql = this.buildSql(odps, tableConfig.tableName(), tableConfig.columns().stream().map(Common.DataColumn::getName).toList(), tableConfig.partition());
+            this.schema = odpsCommandConfig.getResultSchema();
+
+        } else {
+            throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Unsupported read parameter type: " + odpsCommandConfig.getClass());
+        }
+
+        if (isLazyMode) {
+            this.count = -1;
+            ExecutorService executorService = Executors.newSingleThreadExecutor();
+            doSqlTaskFuture = executorService.submit(() -> this.executeSqlTaskAndHandleResult(odps, odpsConnectConfig.projectName(), querySql));
+        } else {
+            this.executeSqlTaskAndHandleResult(odps, odpsConnectConfig.projectName(), querySql);
+        }
+    }
+
+    public List<TaskConfig> getTaskConfigs() {
+        return Collections.singletonList(new TaskConfig(this, 0, count));
+    }
+
+    /**
+     * Execute SQL task and handle the result.
+     *
+     * @param odps        the Odps instance
+     * @param projectName the project name
+     * @param querySql    the SQL query to execute
+     */
+    private void executeSqlTaskAndHandleResult(Odps odps, String projectName, String querySql) {
+        Throwable throwable = null;
         try {
-            OdpsConnectConfig odpsConnectConfig = odpsCommandConfig.getOdpsConnectConfig();
-            Odps odps = OdpsUtil.initOdps(odpsConnectConfig);
-            String querySql;
+            readWriteLock.writeLock().lock();
+            sqlTaskRunCountDownLatch.countDown();
 
-            if (odpsCommandConfig instanceof ScqlCommandJobConfig scqlReadJobConfig) {
-                querySql = scqlReadJobConfig.getCommandConfig();
-            } else if (odpsCommandConfig instanceof OdpsTableQueryConfig odpsTableQueryConfig) {
-                OdpsTableConfig tableConfig = odpsTableQueryConfig.getCommandConfig();
-                // If the DomainData is parsed to SQL,
-                // the query is performed by the field of the DomainData and the field value of the column of the DomainData is returned
-                querySql = this.buildSql(odps, tableConfig.tableName(), tableConfig.columns().stream().map(Common.DataColumn::getName).toList(), tableConfig.partition());
-                this.schema = odpsCommandConfig.getResultSchema();
-
-            } else {
-                throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Unsupported read parameter type: " + odpsCommandConfig.getClass());
-            }
-
-            Instance runInstance = SQLTask.run(odps, odpsConnectConfig.projectName(), querySql, OdpsUtil.getSqlFlag(), null);
-
+            // 1. run SQL task
+            Instance runInstance = SQLTask.run(odps, projectName, querySql, OdpsUtil.getSqlFlag(), null);
             runInstance.waitForSuccess();
             log.debug("SQL Task run success, sql: {}", querySql);
 
+            // 2. handle result
             if (runInstance.isSuccessful()) {
-                downloadSession = new InstanceTunnel(odps).createDownloadSession(odpsConnectConfig.projectName(), runInstance.getId(), false);
+                downloadSession = new InstanceTunnel(odps).createDownloadSession(projectName, runInstance.getId(), false);
                 this.count = downloadSession.getRecordCount();
             } else {
                 log.error("SQL Task run result is not successful, sql: {}", querySql);
@@ -113,57 +155,59 @@ public class OdpsDoGetContext {
             if (odpsCommandConfig.getOdpsTypeEnum() == OdpsTypeEnum.SQL) {
                 this.initArrowSchemaFromColumns();
             }
-
         } catch (OdpsException e) {
             log.error("SQL Task run error", e);
+            throwable = e;
+            throw DataproxyException.of(DataproxyErrorCode.ODPS_ERROR, e.getMessage(), e);
+        } catch (Exception e) {
+            throwable = e;
             throw DataproxyException.of(DataproxyErrorCode.ODPS_ERROR, "SQL Task run error", e);
+        }finally {
+            readWriteLock.writeLock().unlock();
+            loadLazyConfig(throwable);
         }
     }
 
-    public List<TaskConfig> getTaskConfigs() {
-        long upgradeThreshold = FlightServerContext.getOrDefault(
-                OdpsConfigConstant.ConfigKey.FLIGHT_ENDPOINT_UPGRADE_TO_MULTI_BATCH_THRESHOLD,
-                Long.class,
-                1_000_000L);
-        int numberOfParts = FlightServerContext.getOrDefault(
-                OdpsConfigConstant.ConfigKey.MAX_FLIGHT_ENDPOINT,
-                Integer.class,
-                3);
-        if (this.count > upgradeThreshold) {
-
-            // More than 3 million rows, and the task needs to be split
-            log.info("SQL result count is greater than {}, split into {} tasks", upgradeThreshold, numberOfParts);
-
-            long itemsPerBatch = count / numberOfParts;
-            long remainder = count % numberOfParts;
-
-            ArrayList<TaskConfig> taskConfigs = new ArrayList<>();
-            for (int i = 0; i < numberOfParts; i++) {
-                taskConfigs.add(
-                        new TaskConfig(this,
-                                i * itemsPerBatch + Math.min(i, remainder),
-                                itemsPerBatch + (i < remainder ? 1 : 0)));
+    private void loadLazyConfig(Throwable throwable) {
+        tickerWrapperMapRwLock.writeLock().lock();
+        try {
+            // 1. check if the ticketWrapperMap is empty
+            if (ticketWrapperMap.isEmpty()) {
+                // If the ticketWrapperMap is empty, will generate task config when get flight info request
+                return;
+            }
+            // If the ticketWrapperMap is not empty, will set taskConfig from result to ParamWrapper
+            // 2. iterate through the ticketWrapperMap and set the taskConfig from result
+            List<TaskConfig> taskConfigs = getTaskConfigs();
+            if (taskConfigs.isEmpty()) {
+                throw new IllegalArgumentException("#getTaskConfigs is empty");
             }
 
-            return taskConfigs;
+            log.info("config list size: {}", taskConfigs.size());
+            log.info("ticketWrapperMap size: {}", ticketWrapperMap.size());
+
+            int index = 0;
+            ParamWrapper paramWrapper;
+            for (Map.Entry<byte[], ParamWrapper> entry : ticketWrapperMap.entrySet()) {
+                paramWrapper = entry.getValue();
+
+                if (index < taskConfigs.size()) {
+                    TaskConfig taskConfig = taskConfigs.get(index);
+                    taskConfig.setError(throwable);
+                    log.info("Load lazy taskConfig: {}", JsonUtils.toString(taskConfig));
+                    paramWrapper.setParamIfAbsent(taskConfig);
+                } else {
+                    // Set the remaining ticketWrapperMap to a default TaskConfig that doesn't read data
+                    log.info("Set the remaining ticketWrapperMap to a default TaskConfig that doesn't read data. index: {},", index);
+                    TaskConfig taskConfig = new TaskConfig(this, 0, 0);
+                    taskConfig.setError(throwable);
+                    paramWrapper.setParamIfAbsent(taskConfig);
+                }
+                index++;
+            }
+        } finally {
+            tickerWrapperMapRwLock.writeLock().unlock();
         }
-
-        return Collections.singletonList(new TaskConfig(this, 0, count));
-    }
-
-    public List<FlightEndpoint> getFlightEndpoints(String type) {
-        final TicketService ticketService = CacheTicketService.getInstance();
-        byte[] bytes;
-        List<TaskConfig> taskConfigs = getTaskConfigs();
-        List<FlightEndpoint> endpointList = new ArrayList<>(taskConfigs.size());
-        for (TaskConfig taskConfig : taskConfigs) {
-            log.info("taskConfig: {}", taskConfig);
-            bytes = ticketService.generateTicket(ParamWrapper.of(type, taskConfig));
-
-            endpointList.add(new FlightEndpoint(new Ticket(bytes), FlightServerContext.getInstance().getFlightServerConfig().getLocation()));
-        }
-
-        return endpointList;
     }
 
     private void initArrowSchemaFromColumns() {

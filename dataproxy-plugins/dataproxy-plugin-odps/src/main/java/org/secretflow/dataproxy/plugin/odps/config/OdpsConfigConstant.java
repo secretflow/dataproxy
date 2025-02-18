@@ -25,14 +25,15 @@ public class OdpsConfigConstant {
     public static class ConfigKey {
 
         /**
-         * The maximum number of flight endpoints that can be split on the server
+         * If this value is set, the table is created according to this value.<br>
+         * if it is not set, it is empty by default, and if ODPS must require a lifecycle and the value is not set, the creation fails. <br>
+         *
+         * This value is the value of the ODPS table lifecycle, and the unit is days.<br>
+         * 1~37231, the default value is 37231.<br>
+         * The value of this parameter is used to determine whether the table is expired.<br>
+         * If the table is expired, it will be deleted.
          */
-        public static final String MAX_FLIGHT_ENDPOINT = "FLIGHT_ENDPOINT_ODPS_MAX";
-
-        /**
-         * The threshold for upgrading to multi-batch mode
-         */
-        public static final String FLIGHT_ENDPOINT_UPGRADE_TO_MULTI_BATCH_THRESHOLD = "FLIGHT_ENDPOINT_ODPS_UPGRADE_THRESHOLD";
+        public static final String ODPS_TABLE_LIFECYCLE_VALUE = "ODPS_TABLE_LIFECYCLE_VALUE";
 
     }
 }

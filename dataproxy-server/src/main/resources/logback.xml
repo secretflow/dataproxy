@@ -3,9 +3,11 @@
 <configuration>
     <appender name="FILE_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>log/dataproxy.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>log/dataproxy.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
+            <maxFileSize>100MB</maxFileSize>
+            <totalSizeCap>512MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %line - %msg%n</pattern>
@@ -21,7 +23,7 @@
         <appender-ref ref="FILE_APPENDER" />
     </appender>
 
-    <root level="${sys:LOG_LEVEL:-INFO}">
+    <root level="${LOG_LEVEL:-INFO}">
         <appender-ref ref="ASYNC_APPENDER"/>
         <appender-ref ref="STDOUT" />
     </root>

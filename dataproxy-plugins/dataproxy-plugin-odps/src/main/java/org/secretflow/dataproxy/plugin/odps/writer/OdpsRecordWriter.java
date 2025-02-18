@@ -45,8 +45,10 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
 import org.secretflow.dataproxy.common.utils.JsonUtils;
+import org.secretflow.dataproxy.core.config.FlightServerContext;
 import org.secretflow.dataproxy.core.writer.Writer;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsCommandConfig;
+import org.secretflow.dataproxy.plugin.odps.config.OdpsConfigConstant;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsConnectConfig;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsTableConfig;
 import org.secretflow.dataproxy.plugin.odps.config.OdpsWriteConfig;
@@ -56,6 +58,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author yuexie
@@ -358,7 +361,8 @@ public class OdpsRecordWriter implements Writer {
                 tableSchema.setPartitionColumns(partitionColumns);
             }
             log.info("create odps table schema: {}", JsonUtils.toString(tableSchema));
-            odps.tables().create(projectName, tableName, tableSchema, "", true, null, OdpsUtil.getSqlFlag(), null);
+            Optional<Long> tableLifeCycleFromConfig = this.getTableLifeCycleValueConfig();
+            odps.tables().create(projectName, tableName, tableSchema, "", true, tableLifeCycleFromConfig.orElse(null), OdpsUtil.getSqlFlag(), null);
             return true;
         } catch (Exception e) {
             log.error("create odps table error, projectName:{}, tableName:{}", projectName, tableName, e);
@@ -446,4 +450,16 @@ public class OdpsRecordWriter implements Writer {
             }
         }
     }
+
+    /**
+     * Get the one that needs to be set to the ODPS table lifecycle from the configuration. <br>
+     * If the configuration is set, return an Optional of the value. <br>
+     * If the configuration is not set, return an empty Optional. <br>
+     *
+     * @return optional of the value of the configuration
+     */
+    public Optional<Long> getTableLifeCycleValueConfig() {
+        return Optional.ofNullable(FlightServerContext.get(OdpsConfigConstant.ConfigKey.ODPS_TABLE_LIFECYCLE_VALUE, Long.class));
+    }
+
 }

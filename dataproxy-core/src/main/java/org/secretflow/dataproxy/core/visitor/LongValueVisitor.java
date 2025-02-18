@@ -18,6 +18,7 @@ package org.secretflow.dataproxy.core.visitor;
 
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,16 +35,16 @@ import java.util.Date;
 public class LongValueVisitor implements ValueVisitor<Long> {
 
     @Override
-    public Long visit(Long value) {
+    public Long visit(@Nonnull Long value) {
         return value;
     }
     @Override
-    public Long visit(String value) {
+    public Long visit(@Nonnull String value) {
         return Long.valueOf(value);
     }
 
     @Override
-    public Long visit(Object value) {
+    public Long visit(@Nonnull Object value) {
 
         log.debug("type: {}, value: {}",value.getClass().getName(), value);
 
@@ -65,12 +66,12 @@ public class LongValueVisitor implements ValueVisitor<Long> {
     }
 
     @Override
-    public Long visit(Double value) {
+    public Long visit(@Nonnull Double value) {
         return value.longValue();
     }
 
     @Override
-    public Long visit(Date value) {
+    public Long visit(@Nonnull Date value) {
         return value.getTime();
     }
 
@@ -80,37 +81,37 @@ public class LongValueVisitor implements ValueVisitor<Long> {
     }
 
     @Override
-    public Long visit(Short value) {
+    public Long visit(@Nonnull Short value) {
         return value.longValue();
     }
 
     @Override
-    public Long visit(Integer value) {
+    public Long visit(@Nonnull Integer value) {
         return value.longValue();
     }
 
     @Override
-    public Long visit(Float value) {
+    public Long visit(@Nonnull Float value) {
         return value.longValue();
     }
 
     @Override
-    public Long visit(ZonedDateTime value) {
+    public Long visit(@Nonnull ZonedDateTime value) {
         return value.toInstant().toEpochMilli();
     }
 
     @Override
-    public Long visit(LocalDateTime value) {
+    public Long visit(@Nonnull LocalDateTime value) {
         return value.toInstant(ZoneOffset.of(ZoneId.systemDefault().getId())).toEpochMilli();
     }
 
     @Override
-    public Long visit(LocalDate value) {
+    public Long visit(@Nonnull LocalDate value) {
         return value.toEpochDay();
     }
 
     @Override
-    public Long visit(Instant value) {
+    public Long visit(@Nonnull Instant value) {
         log.debug("visit instant: {}", value.toEpochMilli());
         return value.toEpochMilli();
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Ant Group Co., Ltd.
+ * Copyright 2025 Ant Group Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.secretflow.dataproxy.server;
+package org.secretflow.dataproxy.server.flight.middleware;
 
 import org.apache.arrow.flight.CallHeaders;
 import org.apache.arrow.flight.CallInfo;

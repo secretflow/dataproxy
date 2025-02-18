@@ -16,6 +16,8 @@
 
 package org.secretflow.dataproxy.core.visitor;
 
+import javax.annotation.Nonnull;
+
 /**
  * @author yuexie
  * @date 2024/11/1 20:25
@@ -28,27 +30,27 @@ public class ByteValueVisitor implements ValueVisitor<Byte>{
     }
 
     @Override
-    public Byte visit(Short value) {
+    public Byte visit(@Nonnull Short value) {
         return value.byteValue();
     }
 
     @Override
-    public Byte visit(Integer value) {
+    public Byte visit(@Nonnull Integer value) {
         return value.byteValue();
     }
 
     @Override
-    public Byte visit(Long value) {
+    public Byte visit(@Nonnull Long value) {
         return value.byteValue();
     }
 
     @Override
-    public Byte visit(Float value) {
+    public Byte visit(@Nonnull Float value) {
         return value.byteValue();
     }
 
     @Override
-    public Byte visit(Double value) {
+    public Byte visit(@Nonnull Double value) {
         return value.byteValue();
     }
 
