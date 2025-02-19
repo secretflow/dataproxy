@@ -76,5 +76,5 @@ workflows:
             .circleci/continue-config.yml sdk-build-and-run true
             dataproxy_sdk/.* sdk-build-and-run true
             .bazelrc sdk-build-and-run true
-            WORKSPACE sdk-build-and-run true
+            MODULE.bazel sdk-build-and-run true
       - lint

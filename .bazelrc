@@ -19,7 +19,6 @@ common --registry=https://raw.githubusercontent.com/secretflow/bazel-registry/ma
 common --registry=https://bcr.bazel.build
 common --registry=https://baidu.github.io/babylon/registry
 
-
 build --incompatible_new_actions_api=false
 build --copt=-fdiagnostics-color=always
 build --enable_platform_specific_config
@@ -49,10 +48,13 @@ build:linux --action_env=BAZEL_LINKLIBS=-l%:libstdc++.a:-l%:libgcc.a
 
 # platform specific config
 # Bazel will automatic pick platform config since we have enable_platform_specific_config set
-build:linux --copt=-fopenmp
-build:linux --linkopt=-fopenmp
-build:macos --copt="-Xpreprocessor -fopenmp"
+build:macos --copt=-Xclang=-fopenmp
 build:macos --copt=-Wno-unused-command-line-argument
 build:macos --features=-supports_dynamic_linker
-build:macos --macos_minimum_os=12.0
-build:macos --host_macos_minimum_os=12.0
+build:macos --macos_minimum_os=13.0
+build:macos --host_macos_minimum_os=13.0
+build:macos --action_env MACOSX_DEPLOYMENT_TARGET=13.0
+
+build:linux --copt=-fopenmp
+build:linux --linkopt=-fopenmp
+

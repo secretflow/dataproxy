@@ -24,24 +24,44 @@ namespace dataproxy_sdk {
 
 class DoPutResultWrapper {
  public:
-  virtual void WriteRecordBatch(const arrow::RecordBatch& batch) = 0;
-  virtual void Close() = 0;
+  void WriteRecordBatch(const arrow::RecordBatch& batch);
+  void Close();
 
  public:
-  DoPutResultWrapper() = default;
-  virtual ~DoPutResultWrapper() = default;
+  DoPutResultWrapper(arrow::flight::FlightClient::DoPutResult& result,
+                     std::unique_ptr<arrow::flight::FlightClient> client)
+      : stream_writer_(std::move(result.writer)),
+        metadata_reader_(std::move(result.reader)),
+        dp_client_(std::move(client)) {}
+  ~DoPutResultWrapper() = default;
+
+ private:
+  //  a writer to write record batches to
+  std::unique_ptr<arrow::flight::FlightStreamWriter> stream_writer_;
+  //  a reader for application metadata from the server
+  std::unique_ptr<arrow::flight::FlightMetadataReader> metadata_reader_;
+  //  If the dp is deployed alone, use client to manage lifecycle, not for
+  //  public use
+  std::unique_ptr<arrow::flight::FlightClient> dp_client_;
 };
 
 class FlightStreamReaderWrapper {
  public:
-  virtual std::shared_ptr<arrow::RecordBatch> ReadRecordBatch() = 0;
-  virtual std::shared_ptr<arrow::RecordBatch> ReadRecordBatch(size_t index) = 0;
-  virtual std::shared_ptr<arrow::Schema> GetSchema() = 0;
-  virtual size_t GetSize() = 0;
+  std::shared_ptr<arrow::RecordBatch> ReadRecordBatch();
+  std::shared_ptr<arrow::Schema> GetSchema();
 
  public:
-  FlightStreamReaderWrapper() = default;
-  virtual ~FlightStreamReaderWrapper() = default;
+  FlightStreamReaderWrapper(
+      std::unique_ptr<arrow::flight::FlightStreamReader> stream,
+      std::unique_ptr<arrow::flight::FlightClient> client)
+      : stream_reader_(std::move(stream)), dp_client_(std::move(client)) {}
+  ~FlightStreamReaderWrapper() = default;
+
+ private:
+  std::unique_ptr<arrow::flight::FlightStreamReader> stream_reader_;
+  //  If the dp is deployed alone, use client to manage lifecycle, not for
+  //  public use
+  std::unique_ptr<arrow::flight::FlightClient> dp_client_;
 };
 
 class DataProxyConn {
@@ -59,7 +79,7 @@ class DataProxyConn {
       const arrow::flight::FlightDescriptor& descriptor,
       std::shared_ptr<arrow::Schema> schema);
 
-  std::shared_ptr<FlightStreamReaderWrapper> DoGet(
+  std::unique_ptr<FlightStreamReaderWrapper> DoGet(
       const arrow::flight::FlightDescriptor& descriptor);
 
   std::unique_ptr<arrow::flight::ResultStream> DoAction(

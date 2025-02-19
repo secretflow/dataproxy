@@ -18,10 +18,28 @@ load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(
+    [
+        "exported_symbols.lds",
+        "version_script.lds",
+    ],
+    visibility = ["//visibility:private"],
+)
+
 pybind_extension(
     name = "_dm_mock",
     srcs = ["_dm_mock.cc"],
+    linkopts = select({
+        "@bazel_tools//src/conditions:darwin": [
+            "-Wl,-exported_symbols_list,$(location :exported_symbols.lds)",
+        ],
+        "//conditions:default": [
+            "-Wl,--version-script,$(location :version_script.lds)",
+        ],
+    }),
     deps = [
+        ":exported_symbols.lds",
+        ":version_script.lds",
         "//dataproxy_sdk/cc:exception",
         "//dataproxy_sdk/test:data_mesh_mock",
     ],

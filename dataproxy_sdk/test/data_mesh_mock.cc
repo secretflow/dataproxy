@@ -25,7 +25,7 @@ namespace dataproxy_sdk {
 
 class DataMeshMockServer : public arrow::flight::FlightServerBase {
  public:
-  DataMeshMockServer(int dp_num) : dp_num_(dp_num) {}
+  DataMeshMockServer(bool open_dp) : open_dp_(open_dp) {}
 
  public:
   arrow::Status GetFlightInfo(
@@ -91,39 +91,33 @@ class DataMeshMockServer : public arrow::flight::FlightServerBase {
  private:
   arrow::Result<arrow::flight::FlightInfo> MakeFlightInfo() {
     auto descriptor = arrow::flight::FlightDescriptor::Command("");
-    std::vector<arrow::flight::FlightEndpoint> endpoints;
-    if (dp_num_ > 0) {
-      arrow::flight::FlightEndpoint dp_endpoint;
-      dp_endpoint.locations.push_back(location());
-      for (int i = 0; i < dp_num_; ++i) {
-        endpoints.emplace_back(dp_endpoint);
-      }
+    arrow::flight::FlightEndpoint endpoint;
+    if (open_dp_) {
+      endpoint.locations.push_back(location());
     } else {
-      arrow::flight::FlightEndpoint dm_endpoint;
       ARROW_ASSIGN_OR_RAISE(
           auto location, arrow::flight::Location::Parse("kuscia://datamesh"));
-      dm_endpoint.locations.push_back(location);
-      endpoints.emplace_back(dm_endpoint);
+      endpoint.locations.push_back(location);
     }
 
     arrow::SchemaBuilder builder;
     ARROW_ASSIGN_OR_RAISE(auto schema, builder.Finish());
 
-    return arrow::flight::FlightInfo::Make(*schema, descriptor, endpoints, 0,
+    return arrow::flight::FlightInfo::Make(*schema, descriptor, {endpoint}, 0,
                                            0);
   }
 
-  int dp_num_;
+  bool open_dp_;
   std::shared_ptr<arrow::Table> table_;
 };
 
 class DataMeshMock::Impl {
  public:
-  arrow::Status StartServer(const std::string &dm_address, int dp_num) {
+  arrow::Status StartServer(const std::string &dm_address, bool open_dp) {
     ARROW_ASSIGN_OR_RAISE(auto options, arrow::flight::Location::Parse(
                                             "grpc+tcp://" + dm_address));
     arrow::flight::FlightServerOptions server_location(options);
-    server_ = std::make_shared<DataMeshMockServer>(dp_num);
+    server_ = std::make_shared<DataMeshMockServer>(open_dp);
     RETURN_NOT_OK(server_->Init(server_location));
 
     auto thread = std::thread(&DataMeshMockServer::Serve, server_);
@@ -154,8 +148,8 @@ DataMeshMock::DataMeshMock() { impl_ = std::make_unique<DataMeshMock::Impl>(); }
 DataMeshMock::~DataMeshMock() = default;
 
 arrow::Status DataMeshMock::StartServer(const std::string &dm_address,
-                                        int dp_num) {
-  return impl_->StartServer(dm_address, dp_num);
+                                        bool open_dp) {
+  return impl_->StartServer(dm_address, open_dp);
 }
 
 arrow::Status DataMeshMock::CloseServer() { return impl_->CloseServer(); }

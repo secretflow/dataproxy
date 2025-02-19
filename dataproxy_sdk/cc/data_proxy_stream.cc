@@ -27,7 +27,7 @@ namespace dataproxy_sdk {
 class SimpleStreamReader : public DataProxyStreamReader {
  public:
   explicit SimpleStreamReader(
-      std::shared_ptr<FlightStreamReaderWrapper> wrapper)
+      std::unique_ptr<FlightStreamReaderWrapper> wrapper)
       : DataProxyStreamReader(), wrapper_(std::move(wrapper)) {}
 
  public:
@@ -38,7 +38,7 @@ class SimpleStreamReader : public DataProxyStreamReader {
   std::shared_ptr<arrow::Schema> Schema() { return wrapper_->GetSchema(); }
 
  private:
-  std::shared_ptr<FlightStreamReaderWrapper> wrapper_;
+  std::unique_ptr<FlightStreamReaderWrapper> wrapper_;
 };
 
 class SimpleStreamWriter : public DataProxyStreamWriter {

@@ -14,8 +14,6 @@
 
 #include "dataproxy_sdk/cc/data_proxy_stream.h"
 
-#include <random>
-
 #include "arrow/type.h"
 #include "gtest/gtest.h"
 
@@ -42,7 +40,7 @@ class TestDataProxyStream : public ::testing::Test {
   std::shared_ptr<DataMeshMock> data_mesh_;
   std::shared_ptr<arrow::RecordBatch> data_;
   std::shared_ptr<DataProxyStream> data_proxy_stream_;
-  const std::string kDataMeshAddress = "127.0.0.1:23340";
+  const std::string kDataMeshAddress = "127.0.0.1:23336";
 };
 
 TEST_F(TestDataProxyStream, PutAndGet) {
@@ -74,55 +72,6 @@ TEST_F(TestDataProxyStream, PutAndGet) {
   reader->Get(&sql_batch);
 
   EXPECT_TRUE(data_->Equals(*sql_batch));
-}
-
-class TestDataProxyStreamUseDP : public ::testing::Test {
- public:
-  void SetUp() {
-    std::mt19937 rnd(std::random_device{}());
-    std::uniform_int_distribution<> dist(1, 10);
-    dp_num_ = dist(rnd);
-    data_mesh_ = DataMeshMock::Make();
-    CHECK_ARROW_OR_THROW(data_mesh_->StartServer(kDataMeshAddress, dp_num_));
-
-    dataproxy_sdk::proto::DataProxyConfig sdk_config;
-    sdk_config.set_data_proxy_addr(kDataMeshAddress);
-    data_proxy_stream_ = DataProxyStream::Make(sdk_config);
-
-    data_ = RandomBatchGenerator::ExampleGenerate();
-  }
-
- protected:
-  std::shared_ptr<DataMeshMock> data_mesh_;
-  std::shared_ptr<arrow::RecordBatch> data_;
-  std::shared_ptr<DataProxyStream> data_proxy_stream_;
-  const std::string kDataMeshAddress = "127.0.0.1:23341";
-  int dp_num_;
-};
-
-TEST_F(TestDataProxyStreamUseDP, PutAndGet) {
-  proto::UploadInfo upload_info;
-  upload_info.set_domaindata_id("");
-  upload_info.set_type("table");
-  for (const auto& field : data_->schema()->fields()) {
-    auto column = upload_info.add_columns();
-    column->set_name(field->name());
-    column->set_type(field->type()->name());
-  }
-  auto writer = data_proxy_stream_->GetWriter(upload_info);
-  writer->Put(data_);
-  writer->Close();
-
-  proto::DownloadInfo download_info;
-  download_info.set_domaindata_id("test");
-  auto reader = data_proxy_stream_->GetReader(download_info);
-
-  // dm mock中每个dp都返回全部数据副本，所以得到的数据是原数据的dp_num_倍
-  for (int64_t i = 0; i < dp_num_; ++i) {
-    std::shared_ptr<arrow::RecordBatch> result_batch;
-    reader->Get(&result_batch);
-    ASSERT_TRUE(result_batch->Equals(*data_));
-  }
 }
 
 }  // namespace dataproxy_sdk

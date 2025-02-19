@@ -20,98 +20,12 @@
 
 namespace dataproxy_sdk {
 
-class SimpleDoPutResult : public DoPutResultWrapper {
- public:
-  void WriteRecordBatch(const arrow::RecordBatch& batch) {
-    CHECK_ARROW_OR_THROW(stream_writer_->WriteRecordBatch(batch));
-  }
-
-  void Close() { CHECK_ARROW_OR_THROW(stream_writer_->Close()); }
-
- public:
-  SimpleDoPutResult(arrow::flight::FlightClient::DoPutResult& result)
-      : stream_writer_(std::move(result.writer)),
-        metadata_reader_(std::move(result.reader)) {}
-  ~SimpleDoPutResult() = default;
-
- private:
-  //  a writer to write record batches to
-  std::unique_ptr<arrow::flight::FlightStreamWriter> stream_writer_;
-  //  a reader for application metadata from the server
-  std::unique_ptr<arrow::flight::FlightMetadataReader> metadata_reader_;
-};
-
-class SimpleFlightStreamReader : public FlightStreamReaderWrapper {
- public:
-  enum ReadType { kInvalid = 0, kSerial, kParallel };
-
- public:
-  void CheckReadType(ReadType read_type) {
-    if (read_type_ == ReadType::kInvalid) {
-      read_type_ = read_type;
-      return;
-    }
-    if (read_type != read_type_) {
-      DATAPROXY_THROW("CheckReadType error. now:{}, use:{}", (int)read_type_,
-                      (int)read_type);
-    }
-  }
-
-  std::shared_ptr<arrow::RecordBatch> ReadRecordBatch() {
-    CheckReadType(ReadType::kSerial);
-
-    arrow::flight::FlightStreamChunk chunk;
-    if (index_ < stream_readers_.size()) {
-      ASSIGN_ARROW_OR_THROW(chunk, stream_readers_[index_]->Next());
-      if (chunk.data == nullptr && (++index_) < stream_readers_.size()) {
-        ASSIGN_ARROW_OR_THROW(chunk, stream_readers_[index_]->Next());
-      }
-    }
-
-    return chunk.data;
-  }
-  std::shared_ptr<arrow::RecordBatch> ReadRecordBatch(size_t index) {
-    CheckReadType(ReadType::kParallel);
-
-    arrow::flight::FlightStreamChunk chunk;
-
-    DATAPROXY_ENFORCE(index < stream_readers_.size());
-
-    ASSIGN_ARROW_OR_THROW(chunk, stream_readers_[index]->Next());
-
-    return chunk.data;
-  }
-  std::shared_ptr<arrow::Schema> GetSchema() {
-    DATAPROXY_ENFORCE(stream_readers_.size());
-    ASSIGN_DP_OR_THROW(auto ret, stream_readers_.front()->GetSchema());
-    return ret;
-  }
-  size_t GetSize() { return stream_readers_.size(); };
-
- public:
-  SimpleFlightStreamReader(
-      std::vector<std::unique_ptr<arrow::flight::FlightStreamReader>> streams)
-      : stream_readers_(std::move(streams)),
-        index_(0),
-        read_type_(ReadType::kInvalid) {}
-  virtual ~SimpleFlightStreamReader() = default;
-
- private:
-  std::vector<std::unique_ptr<arrow::flight::FlightStreamReader>>
-      stream_readers_;
-  size_t index_;
-  ReadType read_type_;
-};
-
 class DataProxyConn::Impl {
  private:
   struct GetFlightInfoResult {
-    struct Data {
-      arrow::flight::Ticket dp_ticket;
-      std::unique_ptr<arrow::flight::FlightClient> dp_client;
-    };
-
-    std::vector<Data> datas;
+    std::unique_ptr<arrow::flight::FlightInfo> dp_info;
+    //  单独部署的dp的连接
+    std::unique_ptr<arrow::flight::FlightClient> dp_client;
   };
 
  public:
@@ -134,52 +48,41 @@ class DataProxyConn::Impl {
   GetFlightInfoResult GetFlightInfo(
       const arrow::flight::FlightDescriptor& descriptor) {
     GetFlightInfoResult result;
-    ASSIGN_DP_OR_THROW(auto flight_info, dm_client_->GetFlightInfo(descriptor));
-    DATAPROXY_ENFORCE(flight_info->endpoints().size() > 0);
-    for (const auto& endpoint : flight_info->endpoints()) {
-      DATAPROXY_ENFORCE(endpoint.locations.size() > 0);
-      GetFlightInfoResult::Data data;
-      data.dp_ticket = std::move(endpoint.ticket);
-      const auto& location = endpoint.locations.front();
-      const auto& endpoint_url = location.ToString();
-      if (endpoint_url.find("kuscia://") == std::string::npos) {
-        ASSIGN_DP_OR_THROW(auto dp_client,
-                           arrow::flight::FlightClient::Connect(location));
-        data.dp_client = std::move(dp_client);
-      }
-      result.datas.emplace_back(std::move(data));
+    ASSIGN_ARROW_OR_THROW(result.dp_info,
+                          dm_client_->GetFlightInfo(descriptor));
+
+    // 2. 获取dp地址
+    const arrow::flight::Location& location =
+        result.dp_info->endpoints().front().locations.front();
+    std::string dp_url = location.ToString();
+    // 如果dp没有单独部署，后续通过dm进行相关操作
+    if (dp_url.find("kuscia://") == std::string::npos) {
+      ASSIGN_ARROW_OR_THROW(result.dp_client,
+                            arrow::flight::FlightClient::Connect(location));
     }
 
     return result;
   }
 
-  std::shared_ptr<FlightStreamReaderWrapper> DoGet(
+  std::unique_ptr<FlightStreamReaderWrapper> DoGet(
       const arrow::flight::FlightDescriptor& descriptor) {
     GetFlightInfoResult result = GetFlightInfo(descriptor);
 
-    std::vector<std::unique_ptr<arrow::flight::FlightStreamReader>>
-        stream_readers;
-    for (auto& data : result.datas) {
-      std::unique_ptr<arrow::flight::FlightStreamReader> stream_reader;
-      if (data.dp_client) {
-        ASSIGN_ARROW_OR_THROW(stream_reader,
-                              data.dp_client->DoGet(data.dp_ticket));
-      } else {
-        ASSIGN_ARROW_OR_THROW(stream_reader, dm_client_->DoGet(data.dp_ticket));
-      }
-      stream_readers.emplace_back(std::move(stream_reader));
+    std::unique_ptr<arrow::flight::FlightClient> dp_client =
+        std::move(result.dp_client);
+    std::unique_ptr<arrow::flight::FlightStreamReader> stream_reader;
+    if (dp_client) {
+      ASSIGN_ARROW_OR_THROW(
+          stream_reader,
+          dp_client->DoGet(result.dp_info->endpoints().front().ticket));
+    } else {
+      ASSIGN_ARROW_OR_THROW(
+          stream_reader,
+          dm_client_->DoGet(result.dp_info->endpoints().front().ticket));
     }
 
-    DATAPROXY_ENFORCE(stream_readers.size());
-    // Check that all schemas are the same
-    ASSIGN_DP_OR_THROW(auto first_schema, stream_readers[0]->GetSchema());
-    for (size_t i = 1; i < stream_readers.size(); ++i) {
-      ASSIGN_DP_OR_THROW(auto schema, stream_readers[i]->GetSchema());
-      DATAPROXY_ENFORCE(first_schema->Equals(schema));
-    }
-
-    return std::make_shared<SimpleFlightStreamReader>(
-        std::move(stream_readers));
+    return std::make_unique<FlightStreamReaderWrapper>(std::move(stream_reader),
+                                                       std::move(dp_client));
   }
 
   std::unique_ptr<DoPutResultWrapper> DoPut(
@@ -187,11 +90,10 @@ class DataProxyConn::Impl {
       std::shared_ptr<arrow::Schema> schema) {
     GetFlightInfoResult result = GetFlightInfo(descriptor);
 
-    auto& data = result.datas.front();
-    auto dp_descriptor =
-        arrow::flight::FlightDescriptor::Command(data.dp_ticket.ticket);
+    auto dp_descriptor = arrow::flight::FlightDescriptor::Command(
+        result.dp_info->endpoints().front().ticket.ticket);
     std::unique_ptr<arrow::flight::FlightClient> dp_client =
-        std::move(data.dp_client);
+        std::move(result.dp_client);
     arrow::flight::FlightClient::DoPutResult put_result;
     if (dp_client) {
       ASSIGN_ARROW_OR_THROW(put_result,
@@ -201,7 +103,8 @@ class DataProxyConn::Impl {
                             dm_client_->DoPut(dp_descriptor, schema));
     }
 
-    return std::make_unique<SimpleDoPutResult>(put_result);
+    return std::make_unique<DoPutResultWrapper>(put_result,
+                                                std::move(dp_client));
   }
 
   std::unique_ptr<arrow::flight::ResultStream> DoAction(
@@ -216,6 +119,27 @@ class DataProxyConn::Impl {
  private:
   std::unique_ptr<arrow::flight::FlightClient> dm_client_;
 };
+
+void DoPutResultWrapper::WriteRecordBatch(const arrow::RecordBatch& batch) {
+  CHECK_ARROW_OR_THROW(stream_writer_->WriteRecordBatch(batch));
+}
+
+void DoPutResultWrapper::Close() {
+  CHECK_ARROW_OR_THROW(stream_writer_->Close());
+}
+
+std::shared_ptr<arrow::RecordBatch>
+FlightStreamReaderWrapper::ReadRecordBatch() {
+  arrow::flight::FlightStreamChunk chunk;
+  ASSIGN_ARROW_OR_THROW(chunk, stream_reader_->Next());
+  return chunk.data;
+}
+
+std::shared_ptr<arrow::Schema> FlightStreamReaderWrapper::GetSchema() {
+  std::shared_ptr<arrow::Schema> ret;
+  ASSIGN_ARROW_OR_THROW(ret, stream_reader_->GetSchema());
+  return ret;
+}
 
 DataProxyConn::DataProxyConn() {
   impl_ = std::make_unique<DataProxyConn::Impl>();
@@ -236,7 +160,7 @@ std::unique_ptr<DoPutResultWrapper> DataProxyConn::DoPut(
   return impl_->DoPut(descriptor, schema);
 }
 
-std::shared_ptr<FlightStreamReaderWrapper> DataProxyConn::DoGet(
+std::unique_ptr<FlightStreamReaderWrapper> DataProxyConn::DoGet(
     const arrow::flight::FlightDescriptor& descriptor) {
   return impl_->DoGet(descriptor);
 }

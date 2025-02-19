@@ -46,7 +46,7 @@ class TestDataProxyConnUseDP : public ::testing::Test {
  public:
   void SetUp() {
     data_mesh_ = DataMeshMock::Make();
-    CHECK_ARROW_OR_THROW(data_mesh_->StartServer(kDataProxyAddress, 1));
+    CHECK_ARROW_OR_THROW(data_mesh_->StartServer(kDataProxyAddress, true));
 
     data_ = RandomBatchGenerator::ExampleGenerate();
   }
