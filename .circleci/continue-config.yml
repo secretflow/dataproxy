@@ -43,6 +43,10 @@ commands:
             echo ${gcs_content} > ../gcs.data
             ../devtools/bazel_cache_setup.py --in_file=../gcs.data --out_file=../gcs.json --min_download
       - run:
+          name: Install Python dependencies
+          command: |
+            python3 -m pip install ./dataproxy_sdk/python/requirements.txt
+      - run:
           name: "build"
           command: |
             bazel build <<parameters.bazel_targets>> -c opt
