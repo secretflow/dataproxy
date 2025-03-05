@@ -45,7 +45,7 @@ commands:
       - run:
           name: Install Python dependencies
           command: |
-            python3 -m pip install ./dataproxy_sdk/python/requirements.txt
+            python3 -m pip install -r ./dataproxy_sdk/python/requirements.txt
       - run:
           name: "build"
           command: |
