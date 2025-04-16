@@ -25,9 +25,13 @@ bazel_dep(name = "yacl", version = "0.4.5b10-nightly-20241224")
 bazel_dep(name = "rules_cc", version = "0.0.15")
 bazel_dep(name = "kuscia", version = "0.13.0b1")
 
-single_version_override(module_name = "grpc", version = "1.66.0.bcr.4")
+single_version_override(
+    module_name = "grpc",
+    version = "1.66.0.bcr.4",
+)
 
 bazel_dep(name = "rules_python", version = "1.2.0", dev_dependency = True)
+
 python = use_extension("@rules_python//python/extensions:python.bzl", "python", dev_dependency = True)
 python.toolchain(
     configure_coverage_tool = False,

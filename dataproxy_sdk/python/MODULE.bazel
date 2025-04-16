@@ -28,9 +28,13 @@ local_path_override(
     path = "../cc",
 )
 
-single_version_override(module_name = "grpc", version = "1.66.0.bcr.4")
+single_version_override(
+    module_name = "grpc",
+    version = "1.66.0.bcr.4",
+)
 
 DEFAULT_PYTHON_VERSION = "3.11"
+
 SUPPORTED_PYTHON_VERSIONS = [
     "3.9",
     "3.10",
@@ -38,6 +42,7 @@ SUPPORTED_PYTHON_VERSIONS = [
 ]
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+
 [
     python.toolchain(
         ignore_root_user_error = True,
@@ -46,16 +51,19 @@ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
     )
     for python_version in SUPPORTED_PYTHON_VERSIONS
 ]
+
 use_repo(python, "python_versions")
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+
 [
     pip.parse(
-        hub_name = "dataproxy_sdk_pip",
         download_only = True,
+        hub_name = "dataproxy_sdk_pip",
         python_version = python_version,
         requirements_lock = ":requirements.txt",
     )
     for python_version in SUPPORTED_PYTHON_VERSIONS
 ]
+
 use_repo(pip, "dataproxy_sdk_pip")

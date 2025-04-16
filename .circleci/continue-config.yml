@@ -49,9 +49,9 @@ commands:
             declare -i test_status
             make sdk_test
 
-            sh ../devtools/rename-junit-xml.sh
-            find cc/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf cc_test_logs.tar.gz
-            find python/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf py_test_logs.tar.gz
+            # sh ../devtools/rename-junit-xml.sh
+            find dataproxy_sdk/cc/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf cc_test_logs.tar.gz
+            find dataproxy_sdk/python/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf py_test_logs.tar.gz
 
             exit ${test_status}
       - store_test_results:
