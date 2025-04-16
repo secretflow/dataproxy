@@ -1,4 +1,2 @@
-protobuf>5
-kuscia==0.0.3b0
 pyarrow==14.0.2
 numpy<2.0

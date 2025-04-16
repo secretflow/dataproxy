@@ -17,7 +17,7 @@ from ._lib import (
     DataProxyStreamReader,
     DataProxyStream,
 )
-from . import proto
+from . import protos
 import logging
 import os
 import pyarrow
@@ -53,13 +53,16 @@ class StreamWriter:
 
 
 class Stream:
-    def __init__(self, config: proto.DataProxyConfig):
-        self.stream = DataProxyStream(config.SerializeToString())
+    def __init__(self, config: protos.DataProxyConfig = None):
+        if config is None:
+            self.stream = DataProxyStream()
+        else:
+            self.stream = DataProxyStream(config)
 
-    def get_reader(self, info: proto.DownloadInfo):
-        reader = self.stream.get_reader(info.SerializeToString())
+    def get_reader(self, info: protos.DownloadInfo):
+        reader = self.stream.get_reader(info)
         return StreamReader(reader)
 
-    def get_writer(self, info: proto.UploadInfo):
-        writer = self.stream.get_writer(info.SerializeToString())
+    def get_writer(self, info: protos.UploadInfo):
+        writer = self.stream.get_writer(info)
         return StreamWriter(writer)

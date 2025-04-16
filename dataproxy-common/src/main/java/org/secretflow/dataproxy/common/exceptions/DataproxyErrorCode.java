@@ -160,3 +160,4 @@ public enum DataproxyErrorCode {
             + errorType.getCode() + errorSpecific;
     }
 }
+

@@ -43,24 +43,21 @@ commands:
             echo ${gcs_content} > ../gcs.data
             ../devtools/bazel_cache_setup.py --in_file=../gcs.data --out_file=../gcs.json --min_download
       - run:
-          name: "build"
-          command: |
-            bazel build <<parameters.bazel_targets>> -c opt
-      - run:
           name: "test"
           command: |
             set +e
             declare -i test_status
-            bazel test <<parameters.bazel_targets>> -c opt --ui_event_filters=-info,-debug,-warning --test_output=errors | tee test_result.log; test_status=${PIPESTATUS[0]}
+            make sdk_test
 
             sh ../devtools/rename-junit-xml.sh
-            find bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf test_logs.tar.gz
+            find cc/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf cc_test_logs.tar.gz
+            find python/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf py_test_logs.tar.gz
 
             exit ${test_status}
       - store_test_results:
           path: test-results
       - store_artifacts:
-          path: test_logs.tar.gz
+          path: cc_test_logs.tar.gz, py_test_logs.tar.gz
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs

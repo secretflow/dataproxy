@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .file_adapter import FileAdapter
-from .protos import (
+from ._lib import (
     DataProxyConfig,
     DownloadInfo,
-    UploadInfo,
     FileFormat,
     TlSConfig,
+    ORCFileInfo,
+    SQLInfo,
     DataColumn,
+    UploadInfo,
 )
-from .stream import StreamReader, StreamWriter, Stream
-
-DataProxyFileAdapter = FileAdapter

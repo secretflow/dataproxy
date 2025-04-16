@@ -1,0 +1,66 @@
+# Copyright 2025 Ant Group Co., Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("//:defs.bzl", "dataproxy_cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+dataproxy_cc_test(
+    name = "file_help_test",
+    srcs = ["file_help_test.cc"],
+    deps = [
+        "//dataproxy_sdk:file_help",
+        "//test/tools:random",
+        "//test/tools:utils",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "data_proxy_conn_test",
+    srcs = ["data_proxy_conn_test.cc"],
+    deps = [
+        "//dataproxy_sdk:data_proxy_conn",
+        "//test/tools:data_mesh_mock",
+        "//test/tools:random",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "data_proxy_file_test",
+    srcs = ["data_proxy_file_test.cc"],
+    deps = [
+        "//dataproxy_sdk:data_proxy_file",
+        "//test/tools:data_mesh_mock",
+        "//test/tools:random",
+        "//test/tools:utils",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "data_proxy_pb_test",
+    srcs = ["data_proxy_pb_test.cc"],
+    deps = [
+        "//dataproxy_sdk:proto",
+    ],
+)
+
+dataproxy_cc_test(
+    name = "data_proxy_stream_test",
+    srcs = ["data_proxy_stream_test.cc"],
+    deps = [
+        "//dataproxy_sdk:data_proxy_stream",
+        "//test/tools:data_mesh_mock",
+        "//test/tools:random",
+    ],
+)

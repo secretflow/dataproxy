@@ -16,24 +16,30 @@ load("//:defs.bzl", "dataproxy_cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
-config_setting(
-    name = "dataproxy_build_as_release",
-    values = {"compilation_mode": "opt"},
-)
-
-config_setting(
-    name = "dataproxy_build_as_debug",
-    values = {"compilation_mode": "dbg"},
-)
-
-config_setting(
-    name = "dataproxy_build_as_fast",
-    values = {"compilation_mode": "fastbuild"},
+dataproxy_cc_library(
+    name = "random",
+    srcs = ["random.cc"],
+    hdrs = ["random.h"],
+    deps = [
+        "//dataproxy_sdk:exception",
+        "@arrow",
+    ],
 )
 
 dataproxy_cc_library(
-    name = "dataproxy_sdk_cc",
+    name = "data_mesh_mock",
+    srcs = ["data_mesh_mock.cc"],
+    hdrs = ["data_mesh_mock.h"],
     deps = [
-        "//dataproxy_sdk:dataproxy_sdk_api",
+        "@arrow//:arrow_flight",
+    ],
+)
+
+dataproxy_cc_library(
+    name = "utils",
+    srcs = ["utils.cc"],
+    hdrs = ["utils.h"],
+    deps = [
+        "//dataproxy_sdk:proto",
     ],
 )

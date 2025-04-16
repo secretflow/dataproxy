@@ -1,4 +1,4 @@
-# Copyright 2024 Ant Group Co., Ltd.
+# Copyright 2025 Ant Group Co., Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .file_adapter import FileAdapter
-from .protos import (
+from dataproxy import (
     DataProxyConfig,
-    DownloadInfo,
     UploadInfo,
-    FileFormat,
-    TlSConfig,
+    DownloadInfo,
     DataColumn,
+    FileFormat,
+    Stream,
+    StreamReader,
+    StreamWriter,
+    FileAdapter,
 )
-from .stream import StreamReader, StreamWriter, Stream
-
-DataProxyFileAdapter = FileAdapter

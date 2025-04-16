@@ -19,8 +19,11 @@ class DataMesh:
     def __init__(self):
         self.dm_server = DataMeshMock()
 
-    def start(self, ip, open_dp=False):
+    def start(self, ip="", open_dp=False):
         self.dm_server.start(ip, open_dp)
+
+    def address(self):
+        return self.dm_server.address()
 
     def close(self):
         self.dm_server.close()

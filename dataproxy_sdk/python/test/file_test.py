@@ -12,26 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataproxy_sdk.python.dataproxy import (
+from dataproxy.file_adapter import FileAdapter
+from dataproxy.protos import (
     DataProxyConfig,
     UploadInfo,
     DownloadInfo,
     DataColumn,
-    FileAdapter,
     FileFormat,
 )
-from dataproxy_sdk.python.test.dm_mock import DataMesh
+from test.dm_mock import DataMesh
 from pyarrow.orc import write_table, read_table
 import pyarrow as pa
 import unittest
+import os
 
 
 class TestFile(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
         super().__init__(methodName)
         self.dm = DataMesh()
-        self.dm_ip = "127.0.0.1:24001"
-        self.dm.start(self.dm_ip)
+        self.dm.start("127.0.0.1:22001")
+        self.dm_ip = self.dm.address()
 
     def test_file(self):
         x = pa.array([2, 2, 4, 4, 5, 100])
@@ -63,6 +64,18 @@ class TestFile(unittest.TestCase):
         result_table = read_table(result_file)
 
         self.assertTrue(result_table.equals(table))
+
+        os.environ["KUSCIA_DATA_MESH_ADDR"] = self.dm_ip
+        file_adapter_2 = FileAdapter()
+
+        file_adapter_2.upload_file(upload_info, test_file, FileFormat.ORC)
+
+        result_file_2 = "py_file_result_2.orc"
+        file_adapter_2.download_file(download_info, result_file_2, FileFormat.ORC)
+
+        result_table_2 = read_table(result_file_2)
+
+        self.assertTrue(result_table_2.equals(table))
 
 
 if __name__ == "__main__":

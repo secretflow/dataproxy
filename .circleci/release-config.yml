@@ -60,11 +60,14 @@ commands:
 
             python3 -m pip install twine
 
-            cd dataproxy_sdk/python
+            VERSION_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
+            VERSION_BZL=$(cat dataproxy_sdk/python/version.bzl | grep 'DATAPROXY_SDK_VERSION =' | cut -d '"' -f 2)
 
-            python setup.py bdist_wheel
+            [ ${VERSION_TAG#v} != ${VERSION_BZL} ] && echo No need to build the new version && exit 0
 
-            python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dist/*.whl
+            make sdk_py_build PYTHON_VERSION=<< parameters.python_ver >>
+
+            python3 -m twine upload -r pypi -u __token__ -p ${PYPI_TWINE_TOKEN} dataproxy_sdk/python/bazel-bin/*.whl
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs

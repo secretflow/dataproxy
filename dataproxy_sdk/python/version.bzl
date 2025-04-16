@@ -12,15 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .file_adapter import FileAdapter
-from .protos import (
-    DataProxyConfig,
-    DownloadInfo,
-    UploadInfo,
-    FileFormat,
-    TlSConfig,
-    DataColumn,
-)
-from .stream import StreamReader, StreamWriter, Stream
-
-DataProxyFileAdapter = FileAdapter
+DATAPROXY_SDK_VERSION = "0.5.0.dev20250416"

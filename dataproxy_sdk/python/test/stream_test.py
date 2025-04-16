@@ -12,16 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataproxy_sdk.python.dataproxy import (
-    DataProxyConfig,
-    UploadInfo,
-    DownloadInfo,
-    DataColumn,
+import os
+from dataproxy.stream import (
     Stream,
     StreamReader,
     StreamWriter,
 )
-from dataproxy_sdk.python.test.dm_mock import DataMesh
+from dataproxy.protos import (
+    DataProxyConfig,
+    UploadInfo,
+    DownloadInfo,
+    DataColumn,
+)
+from test.dm_mock import DataMesh
 import pyarrow as pa
 import unittest
 
@@ -30,8 +33,8 @@ class TestStream(unittest.TestCase):
     def __init__(self, methodName: str = "runTest") -> None:
         super().__init__(methodName)
         self.dm = DataMesh()
-        self.dm_ip = "127.0.0.1:24002"
-        self.dm.start(self.dm_ip)
+        self.dm.start("127.0.0.1:22002")
+        self.dm_ip = self.dm.address()
 
     def test_stream(self):
         x = pa.array([2, 2, 4, 4, 5, 100])
@@ -58,6 +61,18 @@ class TestStream(unittest.TestCase):
         ret_batchs = stream_reader.get()
 
         self.assertTrue(ret_batchs.equals(batch))
+
+        os.environ["KUSCIA_DATA_MESH_ADDR"] = self.dm_ip
+        stream_2 = Stream()
+
+        stream_writer_2 = stream_2.get_writer(upload_info)
+        stream_writer_2.put(batch)
+        stream_writer_2.close()
+
+        stream_reader_2 = stream.get_reader(download_info)
+        ret_batchs_2 = stream_reader_2.get()
+
+        self.assertTrue(ret_batchs_2.equals(batch))
 
 
 if __name__ == "__main__":

@@ -15,19 +15,22 @@
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 load("@rules_python//python:defs.bzl", "py_library")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = [
+    "//test:__subpackages__",
+])
 
 exports_files(
     [
         "exported_symbols.lds",
         "version_script.lds",
     ],
-    visibility = ["//visibility:private"],
 )
 
 pybind_extension(
     name = "_lib",
-    srcs = ["_lib.cc"],
+    srcs = [
+        "_lib.cc",
+    ],
     linkopts = select({
         "@bazel_tools//src/conditions:darwin": [
             "-Wl,-exported_symbols_list,$(location :exported_symbols.lds)",
@@ -39,7 +42,7 @@ pybind_extension(
     deps = [
         ":exported_symbols.lds",
         ":version_script.lds",
-        "//dataproxy_sdk/cc:dataproxy_sdk_cc",
+        "@dataproxy_sdk_cc",
     ],
 )
 
@@ -58,6 +61,10 @@ py_library(
     data = [
         ":lib_so",
     ],
+    deps = [
+        ":data_proxy_protos",
+        "@dataproxy_sdk_pip//pyarrow",
+    ],
 )
 
 py_library(
@@ -68,25 +75,28 @@ py_library(
     data = [
         ":lib_so",
     ],
-)
-
-py_library(
-    name = "protos",
-    srcs = [
-        "proto.py",
-        "//dataproxy_sdk/proto:data_proxy_proto_py",
+    deps = [
+        ":data_proxy_protos",
+        "@dataproxy_sdk_pip//pyarrow",
     ],
 )
 
 py_library(
-    name = "init",
+    name = "data_proxy_protos",
+    srcs = [
+        "protos.py",
+    ],
+)
+
+py_library(
+    name = "dataproxy_sdk_init",
     srcs = [
         "__init__.py",
-        ":data_proxy_file_py",
-        ":data_proxy_stream_py",
-        ":protos",
     ],
-    data = [
-        ":lib_so",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":data_proxy_file_py",
+        ":data_proxy_protos",
+        ":data_proxy_stream_py",
     ],
 )

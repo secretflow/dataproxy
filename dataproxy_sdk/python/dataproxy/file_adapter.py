@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from ._lib import DataProxyFile
-from . import proto
+from . import protos
 import pyarrow as pa
 import os
 import logging
@@ -33,20 +33,23 @@ def get_file_sha256(fname):
 
 
 class FileAdapter:
-    def __init__(self, config: proto.DataProxyConfig):
-        self.file = DataProxyFile(config.SerializeToString())
+    def __init__(self, config: protos.DataProxyConfig = None):
+        if config is None:
+            self.file = DataProxyFile()
+        else:
+            self.file = DataProxyFile(config)
 
     def close(self):
         self.file.close()
 
     def download_file(
-        self, info: proto.DownloadInfo, file_path: str, file_format: proto.FileFormat
+        self, info: protos.DownloadInfo, file_path: str, file_format: protos.FileFormat
     ):
         logging.info(
             f"dataproxy sdk: start download_file[{file_path}], type[{file_format}]"
         )
 
-        self.file.download_file(info.SerializeToString(), file_path, file_format)
+        self.file.download_file(info, file_path, file_format)
 
         size = os.path.getsize(file_path)
         sha256 = get_file_sha256(file_path)
@@ -55,13 +58,13 @@ class FileAdapter:
         )
 
     def upload_file(
-        self, info: proto.UploadInfo, file_path: str, file_format: proto.FileFormat
+        self, info: protos.UploadInfo, file_path: str, file_format: protos.FileFormat
     ):
         logging.info(
             f"dataproxy sdk: start upload_file[{file_path}], type[{file_format}]"
         )
 
-        self.file.upload_file(info.SerializeToString(), file_path, file_format)
+        self.file.upload_file(info, file_path, file_format)
 
         size = os.path.getsize(file_path)
         sha256 = get_file_sha256(file_path)

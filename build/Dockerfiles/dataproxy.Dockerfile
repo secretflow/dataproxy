@@ -23,7 +23,7 @@ RUN ln -s ${JAVA_HOME}/lib/libjli.so /lib64
 COPY dataproxy-server/target/dataproxy-server-0.0.1-SNAPSHOT.jar dataproxy.jar
 COPY libs/*.jar libs/
 
-ENV JAVA_OPTS=""
+ENV JAVA_OPTS="-server -XX:+UseG1GC -XX:+DisableExplicitGC -XX:InitiatingHeapOccupancyPercent=68 -Xlog:gc*=info:file=gc.log:time,tags:filecount=5,filesize=10M -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/log -XX:ErrorFile=/app/log/hs_err_pid%p.log"
 ENV LOG_LEVEL=INFO
 EXPOSE 8023
 ENTRYPOINT ${JAVA_HOME}/bin/java ${JAVA_OPTS} -Dsun.net.http.allowRestrictedHeaders=true --add-opens=java.base/java.nio=ALL-UNNAMED -jar ./dataproxy.jar

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@dataproxy_sdk_pip//:requirements.bzl", "requirement")
 load("@pybind11_bazel//:build_defs.bzl", "pybind_extension")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
@@ -31,17 +30,17 @@ pybind_extension(
     srcs = ["_dm_mock.cc"],
     linkopts = select({
         "@bazel_tools//src/conditions:darwin": [
-            "-Wl,-exported_symbols_list,$(location :exported_symbols.lds)",
+            "-Wl,-exported_symbols_list,$(location //dataproxy:exported_symbols.lds)",
         ],
         "//conditions:default": [
-            "-Wl,--version-script,$(location :version_script.lds)",
+            "-Wl,--version-script,$(location //dataproxy:version_script.lds)",
         ],
     }),
     deps = [
-        ":exported_symbols.lds",
-        ":version_script.lds",
-        "//dataproxy_sdk/cc:exception",
-        "//dataproxy_sdk/test:data_mesh_mock",
+        "//dataproxy:exported_symbols.lds",
+        "//dataproxy:version_script.lds",
+        "@dataproxy_sdk_cc",
+        "@dataproxy_sdk_cc//test/tools:data_mesh_mock",
     ],
 )
 
@@ -67,11 +66,7 @@ py_test(
     srcs = ["file_test.py"],
     deps = [
         ":dm_mock_py",
-        "//dataproxy_sdk/python/dataproxy:init",
-        requirement("protobuf"),
-        requirement("pyarrow"),
-        requirement("kuscia"),
-        requirement("numpy"),
+        "//:dataproxy_sdk_py",
     ],
 )
 
@@ -80,10 +75,24 @@ py_test(
     srcs = ["stream_test.py"],
     deps = [
         ":dm_mock_py",
-        "//dataproxy_sdk/python/dataproxy:init",
-        requirement("protobuf"),
-        requirement("pyarrow"),
-        requirement("kuscia"),
-        requirement("numpy"),
+        "//:dataproxy_sdk_py",
+    ],
+)
+
+py_test(
+    name = "init_test",
+    srcs = ["init_test.py"],
+    deps = [
+        ":dm_mock_py",
+        "//:dataproxy_sdk_py",
+    ],
+)
+
+py_test(
+    name = "protos_test",
+    srcs = ["protos_test.py"],
+    deps = [
+        ":dm_mock_py",
+        "//:dataproxy_sdk_py",
     ],
 )

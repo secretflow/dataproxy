@@ -41,3 +41,41 @@ image: build ## Build docker image with the manager.
 .PHONY: docs
 docs: ## Build docs.
 	cd docs && pip install -r requirements.txt && make html
+
+.PHONY: test-integration
+test-integration: ## Run integration tests.
+	mvn clean test -DenableIntegration=true
+
+BAZEL_REPO_CACHE ?= /tmp/bazel_repo_cache
+BAZEL_MAX_JOBS ?= 16
+.PHONY: sdk_cache_update
+sdk_cache_update: ## Update sdk cache.
+	cd dataproxy_sdk/cc && \
+	bazel fetch :dataproxy_sdk_cc --repository_cache=$(BAZEL_REPO_CACHE)
+	cd dataproxy_sdk/python && \
+	bazel fetch :dataproxy_sdk_py --repository_cache=$(BAZEL_REPO_CACHE)
+
+.PHONY: sdk_cc_test
+sdk_cc_test: ## Run sdk c++ tests.
+	cd dataproxy_sdk/cc && \
+	bazel coverage //test:all -c opt --combined_report=lcov --output_filter=^//: \
+		--jobs $(BAZEL_MAX_JOBS) --instrumentation_filter=^// \
+		--repository_cache=$(BAZEL_REPO_CACHE) --nocache_test_results
+.PHONY: sdk_py_test
+sdk_py_test: ## Run sdk python tests.
+	cd dataproxy_sdk/python && \
+	bazel coverage //test:all -c opt --combined_report=lcov --output_filter=^//: \
+		--jobs $(BAZEL_MAX_JOBS) --instrumentation_filter=^// \
+		--repository_cache=$(BAZEL_REPO_CACHE) --nocache_test_results
+.PHONY: sdk_test
+sdk_test: sdk_cc_test sdk_py_test
+
+CURRENT_DATE := $(shell date -u +'%Y%m%d')
+PYTHON_VERSION ?= $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+.PHONY: sdk_py_build
+sdk_py_build: ## Build sdk python package.
+	sed -i 's/@@DATE@@/$(CURRENT_DATE)/g' dataproxy_sdk/python/version.bzl
+	cd dataproxy_sdk/python && \
+	bazel build //:dataproxy_sdk_whl -c opt \
+		--@rules_python//python/config_settings:python_version=$(PYTHON_VERSION) \
+		--repository_cache=$(BAZEL_REPO_CACHE)

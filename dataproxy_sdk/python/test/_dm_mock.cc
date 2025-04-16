@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "pybind11/pybind11.h"
+#include "test/tools/data_mesh_mock.h"
 
-#include "dataproxy_sdk/cc/exception.h"
-#include "dataproxy_sdk/test/data_mesh_mock.h"
+#include "dataproxy_sdk/api.h"
 
 namespace py = pybind11;
 
@@ -45,8 +45,15 @@ PYBIND11_MODULE(_dm_mock, m) {
       }))
       .def("start",
            [](DataMeshMock& self, const std::string& ip, bool open_dp) {
-             CHECK_ARROW_OR_THROW(self.StartServer(ip, open_dp));
+             if (ip.empty()) {
+               CHECK_ARROW_OR_THROW(self.StartServer(open_dp));
+
+             } else {
+               CHECK_ARROW_OR_THROW(self.StartServer(ip, open_dp));
+             }
            })
+      .def("address",
+           [](DataMeshMock& self) { return self.GetServerAddress(); })
       .def("close", [](DataMeshMock& self) {
         CHECK_ARROW_OR_THROW(self.CloseServer());
       });
