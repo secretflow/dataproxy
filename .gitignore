@@ -59,6 +59,8 @@ CTestTestfile.cmake
 # bazel
 bazel-*
 
+# bazel module lock
+MODULE.bazel.lock
 resolved.bzl
 
 #python
