@@ -41,6 +41,7 @@ commands:
           name: Setup GCS
           command: |
             echo ${gcs_content} > ../gcs.data
+            ln -s dataproxy_sdk/.bazelrc .bazelrc
             ../devtools/bazel_cache_setup.py --in_file=../gcs.data --out_file=../gcs.json --min_download
       - run:
           name: "test"
@@ -49,15 +50,24 @@ commands:
             declare -i test_status
             make sdk_test
 
-            # sh ../devtools/rename-junit-xml.sh
-            find dataproxy_sdk/cc/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf cc_test_logs.tar.gz
-            find dataproxy_sdk/python/bazel-testlogs/ -type f -name "test.log"  -print0 | xargs -0 tar -cvzf py_test_logs.tar.gz
+            mkdir -p test-results
+            for dir in $(find dataproxy_sdk -type l -name bazel-testlogs); do
+              for path in $(find $dir/ -name "test.xml"); do
+                dir_name=$(dirname ${path})
+                file_name=$(basename ${path})
+                path_md5=$(echo ${path} | md5sum | cut -f1 -d ' ')
+                target="test-results/TEST-${path_md5}.xml"
+                echo "mv $path to ${target} ..."
+                mv ${path} ${target}
+              done
+            done
+            tar -zcvf test-results.tar.gz test-results
 
             exit ${test_status}
       - store_test_results:
           path: test-results
       - store_artifacts:
-          path: cc_test_logs.tar.gz, py_test_logs.tar.gz
+          path: test-results.tar.gz
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
