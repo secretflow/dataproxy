@@ -9,12 +9,4 @@ on:
     - main
 jobs:
   bazel-formatting-check:
-    name: Run buildifier check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run buildifier
-        uses: jbajic/buildifier@v1
-        with:
-          buildifier-version: 7.3.1
-          mode: fix
+    uses: secretflow/.github/.github/workflows/bazel-linter.yml@main

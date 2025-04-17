@@ -32,7 +32,11 @@ single_version_override(
 
 bazel_dep(name = "rules_python", version = "1.2.0", dev_dependency = True)
 
-python = use_extension("@rules_python//python/extensions:python.bzl", "python", dev_dependency = True)
+python = use_extension(
+    "@rules_python//python/extensions:python.bzl",
+    "python",
+    dev_dependency = True,
+)
 python.toolchain(
     configure_coverage_tool = False,
     ignore_root_user_error = True,
