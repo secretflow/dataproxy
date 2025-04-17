@@ -70,11 +70,9 @@ sdk_py_test: ## Run sdk python tests.
 .PHONY: sdk_test
 sdk_test: sdk_cc_test sdk_py_test
 
-CURRENT_DATE := $(shell date -u +'%Y%m%d')
 PYTHON_VERSION ?= $(shell python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 .PHONY: sdk_py_build
 sdk_py_build: ## Build sdk python package.
-	sed -i 's/@@DATE@@/$(CURRENT_DATE)/g' dataproxy_sdk/python/version.bzl
 	cd dataproxy_sdk/python && \
 	bazel build //:dataproxy_sdk_whl -c opt \
 		--@rules_python//python/config_settings:python_version=$(PYTHON_VERSION) \
