@@ -86,6 +86,7 @@ dataproxy_cc_library(
     name = "data_proxy_file",
     srcs = ["data_proxy_file.cc"],
     hdrs = ["data_proxy_file.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":data_proxy_conn",
         ":exception",
@@ -101,6 +102,7 @@ dataproxy_cc_library(
     name = "data_proxy_stream",
     srcs = ["data_proxy_stream.cc"],
     hdrs = ["data_proxy_stream.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":data_proxy_conn",
         ":exception",
