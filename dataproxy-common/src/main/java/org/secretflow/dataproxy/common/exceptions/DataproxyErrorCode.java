@@ -95,7 +95,11 @@ public enum DataproxyErrorCode {
     ODPS_TASK_NOT_READY(ErrorLevels.ERROR, ErrorTypes.BIZ, "609", "odps task not ready"),
     ODPS_TASK_NOT_RUN(ErrorLevels.ERROR, ErrorTypes.BIZ, "610", "odps task not run"),
 
-
+    // database 异常
+    DATABASE_CREATE_TABLE_FAILED(ErrorLevels.ERROR, ErrorTypes.BIZ, "700", "Create database table failed"),
+    DATABASE_TABLE_NOT_EXISTS(ErrorLevels.ERROR, ErrorTypes.BIZ, "701", "database table not exist"),
+    DATABASE_TABLE_ALREADY_EXISTS(ErrorLevels.ERROR, ErrorTypes.BIZ, "702", "database table already exists"),
+    DATABASE_ERROR(ErrorLevels.ERROR, ErrorTypes.BIZ, "703", "database exeecute sql error"),
     //============================= 第三方错误【900-999】==================================
 
     ;

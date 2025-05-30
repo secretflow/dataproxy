@@ -245,7 +245,7 @@ public class CompositeFlightProducer implements FlightProducer {
                         .withDescription("Unknown command type")
                         .toRuntimeException();
             };
-            log.info("odps type is {}", dataSourceType);
+            log.info("producer type is {}", dataSourceType);
             return registry.getOrDefaultNoOp(dataSourceType);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);

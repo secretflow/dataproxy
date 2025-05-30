@@ -305,6 +305,11 @@
                 <artifactId>dataproxy-plugin-odps</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.secretflow</groupId>
+                <artifactId>dataproxy-plugin-database</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <!-- dataproxy package end -->
 
         </dependencies>
