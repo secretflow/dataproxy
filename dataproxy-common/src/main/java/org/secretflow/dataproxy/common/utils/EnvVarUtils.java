@@ -35,7 +35,7 @@ public class EnvVarUtils {
             return Optional.empty();
         }
 
-        if (!env.matches("\\d+")) {
+        if (!env.matches("-?\\d+")) {
             log.warn("Env var `{}` is not a valid integer: {}", key, env);
             return Optional.empty();
         }
@@ -49,7 +49,7 @@ public class EnvVarUtils {
             return Optional.empty();
         }
 
-        if (!env.matches("\\d+")) {
+        if (!env.matches("-?\\d+")) {
             log.warn("Env var `{}` is not a valid long: {}", key, env);
             return Optional.empty();
         }

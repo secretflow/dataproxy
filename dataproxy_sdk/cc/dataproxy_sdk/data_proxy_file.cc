@@ -185,6 +185,7 @@ class DataProxyFile::Impl {
     FileHelpRead::Options options = FileHelpRead::Options::Defaults();
     for (auto& column : info.columns()) {
       options.column_types.emplace(column.name(), GetDataType(column.type()));
+      options.include_columns.push_back(column.name());
     }
     return options;
   }
@@ -216,7 +217,6 @@ class DataProxyFile::Impl {
       if (batch.get() == nullptr) {
         break;
       }
-
       ASSIGN_DP_OR_THROW(batch_size, arrow::util::ReferencedBufferSize(*batch));
       if (batch_size > kMaxBatchSize) {
         slice_offset = 0;

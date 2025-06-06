@@ -18,6 +18,8 @@
 
 #include "gtest/gtest.h"
 
+#include "proto/data_proxy_pb.pb.h"
+
 namespace dataproxy_sdk {
 
 TEST(DataProxyPD, GetConfigFromEnv) {
@@ -152,6 +154,36 @@ TEST(DataProxyPD, GetConfigDefault) {
   EXPECT_EQ(config.tls_config().private_key_path(), "");
   EXPECT_EQ(config.tls_config().ca_file_path(), "");
   EXPECT_EQ(config.data_proxy_addr(), "datamesh:8071");
+}
+
+TEST(DataProxyPD, PbToProto) {
+  static const std::string kDomainDataId = "123";
+  static const std::string kAttributeType = "456";
+  static const std::string kAttributeKey = "789";
+  static const std::string kColumnName = "name";
+
+  pb::UploadInfo info;
+  info.set_domaindata_id(kDomainDataId);
+  info.mutable_attributes()->insert({kAttributeType, kAttributeKey});
+  auto* column = info.add_columns();
+  column->set_name("name");
+
+  proto::UploadInfo protoInfo;
+  protoInfo.set_domaindata_id(info.domaindata_id());
+  for (const auto& it : info.attributes()) {
+    protoInfo.mutable_attributes()->insert({it.first, it.second});
+  }
+  for (const auto& it : info.columns()) {
+    auto* protoColumn = protoInfo.add_columns();
+    protoColumn->set_name(it.name());
+  }
+
+  EXPECT_EQ(protoInfo.domaindata_id(), kDomainDataId);
+  auto it = protoInfo.mutable_attributes()->find(kAttributeType);
+  EXPECT_TRUE(it != protoInfo.mutable_attributes()->end());
+  EXPECT_EQ(it->second, kAttributeKey);
+  EXPECT_TRUE(protoInfo.columns_size() == info.columns_size());
+  EXPECT_EQ(protoInfo.columns(0).name(), kColumnName);
 }
 
 }  // namespace dataproxy_sdk

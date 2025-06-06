@@ -126,6 +126,7 @@ TEST(FileHelpTest, ORC) {
 FileHelpRead::Options GetReadOptions() {
   FileHelpRead::Options read_options = FileHelpRead::Options::Defaults();
   read_options.column_types.emplace("z", arrow::int64());
+  read_options.include_columns.push_back("z");
   return read_options;
 }
 
@@ -179,6 +180,7 @@ TEST(FileHelpTestWithOption, ORC) {
 FileHelpRead::Options GetErrorOptions() {
   FileHelpRead::Options read_options = FileHelpRead::Options::Defaults();
   read_options.column_types.emplace("a", arrow::int64());
+  read_options.include_columns.push_back("a");
   return read_options;
 }
 

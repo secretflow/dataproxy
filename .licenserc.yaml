@@ -69,8 +69,8 @@ header: # <1>
     - '.gitmodules'
     - 'pyproject.toml'
     - 'setup.cfg'
-    - 'dataproxy-manager/src/main/java/org/secretflow/dataproxy/manager/connector/rdbms/adaptor'
     - '**/src/main/resources/META-INF/services/**'
+    - '**/src/test/resources/*.conf'
 
   comment: never # <9>
 

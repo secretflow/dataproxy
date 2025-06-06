@@ -52,6 +52,7 @@ dataproxy_cc_test(
     srcs = ["data_proxy_pb_test.cc"],
     deps = [
         "//dataproxy_sdk:proto",
+        "//proto:data_proxy_cc_proto",
     ],
 )
 

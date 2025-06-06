@@ -144,7 +144,11 @@ void CreateProtoObj(class py::module_& m) {
       .def_property("datasource_id", &proto::UploadInfo::datasource_id,
                     &proto::UploadInfo::set_datasource_id)
       .def_property("attributes", &proto::UploadInfo::attributes, nullptr)
-      .def_property("columns", &proto::UploadInfo::columns, nullptr)
+      .def_property(
+          "columns",
+          static_cast<const std::vector<proto::DataColumn>& (
+              proto::UploadInfo::*)(void) const>(&proto::UploadInfo::columns),
+          nullptr)
       .def_property("vendor", &proto::UploadInfo::vendor,
                     &proto::UploadInfo::set_vendor);
 }

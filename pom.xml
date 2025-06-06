@@ -9,6 +9,7 @@
         <module>dataproxy-server</module>
         <module>dataproxy-plugins</module>
         <module>dataproxy-core</module>
+        <module>dataproxy-integration-tests</module>
     </modules>
 
     <groupId>org.secretflow</groupId>
@@ -31,8 +32,10 @@
         <maven-surefire-plugin.version>3.3.1</maven-surefire-plugin.version>
         <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
         <maven-clean-plugin.version>3.4.0</maven-clean-plugin.version>
+        <maven-install-plugin.version>3.1.4</maven-install-plugin.version>
         <maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
         <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
 
         <plugin.os.version>1.7.1</plugin.os.version>
         <plugin.protobuf.version>0.6.1</plugin.protobuf.version>
@@ -70,6 +73,10 @@
         <commons-compress.version>1.26.2</commons-compress.version>
         <commons-configuration2.version>2.10.1</commons-configuration2.version>
 
+        <mockito.version>5.15.2</mockito.version>
+        <mockito-inline.version>5.2.0</mockito-inline.version>
+        <system-stubs-jupiter.version>2.1.7</system-stubs-jupiter.version>
+        <jupiter.version>5.11.4</jupiter.version>
     </properties>
 
     <dependencyManagement>
@@ -224,10 +231,6 @@
                         <groupId>com.google.guava</groupId>
                         <artifactId>guava</artifactId>
                     </exclusion>
-                    <exclusion>
-                        <groupId>com.google.code.gson</groupId>
-                        <artifactId>gson</artifactId>
-                    </exclusion>
                 </exclusions>
             </dependency>
             <!-- plugins package end -->
@@ -283,6 +286,55 @@
                 <version>${google-findbugs.version}</version>
             </dependency>
 
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-bom</artifactId>
+                <version>${mockito.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>uk.org.webcompere</groupId>
+                <artifactId>system-stubs-jupiter</artifactId>
+                <version>${system-stubs-jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-inline</artifactId>
+                <version>${mockito-inline.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-api</artifactId>
+                <version>${jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <version>${jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+
+
+            <!-- dataproxy package start -->
+            <dependency>
+                <groupId>org.secretflow</groupId>
+                <artifactId>dataproxy-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <!-- dataproxy package start -->
             <dependency>
@@ -393,6 +445,16 @@
                 </executions>
             </plugin>
 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+
         </plugins>
 
         <pluginManagement>
@@ -402,9 +464,39 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>--add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
+                        <argLine>${argLine} --add-opens=java.base/java.nio=ALL-UNNAMED</argLine>
+                        <reportsDirectory>${session.executionRootDirectory}/target/surefire-reports</reportsDirectory>
+                        <includes>
+                            <include>**/*Test.java</include>
+                        </includes>
                     </configuration>
                 </plugin>
+
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco-maven-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>prepare-agent</id>
+                            <goals>
+                                <goal>prepare-agent</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <excludes>
+                            <exclude>org/secretflow/v1alpha1/**</exclude>
+                        </excludes>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>${maven-install-plugin.version}</version>
+                </plugin>
+
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
