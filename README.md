@@ -8,7 +8,7 @@ DataProxy is a data service framework based on [Arrow Flight](https://arrow.apac
 accesses rich data sources and provides unified, easy-to-use, efficient, and robust data reading and writing services.
 With DataProxy:
 
-* You can access various types of data sources, including MySQL, S3, Aliyun OSS, local disk, etc.
+* You can access various types of data sources, including MySQL, Hive, S3, Aliyun OSS, local disk, etc.
 * You can use a consistent read/write interface to realize read/write operations on different data sources.
 
 ## Documentation
