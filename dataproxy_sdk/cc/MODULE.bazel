@@ -14,7 +14,7 @@
 
 module(
     name = "dataproxy_sdk_cc",
-    version = "0.5.0",
+    version = "0.5.0b0",
     compatibility_level = 1,
 )
 

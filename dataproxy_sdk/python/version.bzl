@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DATAPROXY_SDK_VERSION = "0.5.0"
+DATAPROXY_SDK_VERSION = "0.5.0b0"
