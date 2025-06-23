@@ -16,10 +16,28 @@
 
 package org.secretflow.dataproxy.plugin.database.producer;
 
+import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
+import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
+import org.secretflow.dataproxy.plugin.database.reader.AbstractDatabaseDoGetContext;
+import org.secretflow.dataproxy.plugin.database.reader.HiveDoGetContext;
+import org.secretflow.dataproxy.plugin.database.utils.HiveUtil;
+import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.HiveRecordWriter;
+
 public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
 
     @Override
-    void setProducerName() {
-        this.producerName = "hive";
+    public String getProducerName() {
+        return "hive";
+    }
+
+    @Override
+    protected AbstractDatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config) {
+        return new HiveDoGetContext(config, HiveUtil::initHive);
+    }
+
+    @Override
+    protected AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
+        return new HiveRecordWriter(config, HiveUtil::initHive);
     }
 }

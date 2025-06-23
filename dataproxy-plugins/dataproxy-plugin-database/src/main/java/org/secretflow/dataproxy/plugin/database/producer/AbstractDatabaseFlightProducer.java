@@ -64,22 +64,9 @@ import java.util.function.Function;
 @Slf4j
 public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer implements DataProxyFlightProducer {
     private final TicketService ticketService = CacheTicketService.getInstance();
-    protected String producerName;
 
-    private static final Map<String, Function<DatabaseConnectConfig, Connection>> ProducerName2Init = new HashMap<>();
-    static {
-        ProducerName2Init.put("hive", HiveUtil::initHive);
-        ProducerName2Init.put("oracle", OracleUtil::initOracle);
-        ProducerName2Init.put("dameng", DaMengUtil::initDaMeng);
-    }
-    AbstractDatabaseFlightProducer() {
-        this.setProducerName();
-    }
-    abstract void setProducerName();
     @Override
-    public String getProducerName() {
-        return producerName;
-    }
+    public abstract String  getProducerName();
 
     @Override
     public FlightInfo getFlightInfo(CallContext context, FlightDescriptor descriptor) {
@@ -131,6 +118,8 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
         }
     }
 
+    protected abstract AbstractDatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config);
+    protected abstract AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config);
     @Override
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
         ParamWrapper paramWrapper = ticketService.getParamWrapper(ticket.getBytes());
@@ -144,13 +133,7 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
             }
 
             if (param instanceof DatabaseCommandConfig<?> dbCommandConfig) {
-                dbDoGetContext = switch (this.producerName) {
-                    case "hive" -> new HiveDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
-                    case "oracle" -> new OracleDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
-                    case "dameng" -> new DamengDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
-                    default -> throw new IllegalStateException("Unexpected value: " + this.producerName);
-                };
-
+                dbDoGetContext = initDoGetContext(dbCommandConfig);
                 List<TaskConfig> taskConfigs = dbDoGetContext.getTaskConfigs();
                 dbReader = new DatabaseReader(new RootAllocator(), taskConfigs.get(0));
             } else {
@@ -185,7 +168,7 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
                     dbDoGetContext.close();
                 }
             } catch (Exception e) {
-                log.error("close {} read error", this.producerName, e);
+                log.error("close {} read error", this.getProducerName(), e);
             }
         }
 
@@ -207,12 +190,7 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
 
                 AbstractDatabaseRecordWriter writer;
                 int count = 0;
-                writer = switch (this.producerName) {
-                    case "hive" -> new HiveRecordWriter(writeConfig, ProducerName2Init.get(this.producerName));
-                    case "oracle" -> new OracleRecordWriter(writeConfig, ProducerName2Init.get(this.producerName));
-                    case "dameng" -> new DamengRecordWriter(writeConfig, ProducerName2Init.get(this.producerName));
-                    default -> throw new IllegalStateException("Unexpected value: " + this.producerName);
-                };
+                writer = initRecordWriter(writeConfig);
 
                 String askMsg;
                 VectorSchemaRoot vectorSchemaRoot;

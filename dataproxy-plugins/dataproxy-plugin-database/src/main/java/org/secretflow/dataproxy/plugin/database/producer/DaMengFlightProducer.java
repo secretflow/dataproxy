@@ -16,10 +16,28 @@
 
 package org.secretflow.dataproxy.plugin.database.producer;
 
+import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
+import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
+import org.secretflow.dataproxy.plugin.database.reader.AbstractDatabaseDoGetContext;
+import org.secretflow.dataproxy.plugin.database.reader.DamengDoGetContext;
+import org.secretflow.dataproxy.plugin.database.utils.DaMengUtil;
+import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.DamengRecordWriter;
+
 public class DaMengFlightProducer extends AbstractDatabaseFlightProducer {
 
     @Override
-    void setProducerName() {
-        this.producerName = "dameng";
+    public String getProducerName() {
+        return "dameng";
+    }
+
+    @Override
+    protected AbstractDatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config) {
+        return new DamengDoGetContext(config, DaMengUtil::initDaMeng);
+    }
+
+    @Override
+    protected AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
+        return new DamengRecordWriter(config, DaMengUtil::initDaMeng);
     }
 }
