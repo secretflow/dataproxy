@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Slf4j
-public class DatabaseRecordWriter implements Writer {
+public abstract class AbstractDatabaseRecordWriter implements Writer {
     private final DatabaseCommandConfig<?> commandConfig;
 
     private final DatabaseConnectConfig dbConnectConfig;
@@ -44,7 +44,9 @@ public class DatabaseRecordWriter implements Writer {
     private final Function<DatabaseConnectConfig, Connection> initFunc;
     private Connection connection;
 
-    public DatabaseRecordWriter(DatabaseWriteConfig commandConfig, Function<DatabaseConnectConfig, Connection> initFunc) {
+    protected abstract String wrapTableName(String tableName);
+
+    public AbstractDatabaseRecordWriter(DatabaseWriteConfig commandConfig, Function<DatabaseConnectConfig, Connection> initFunc) {
         this.commandConfig = commandConfig;
         this.dbConnectConfig = commandConfig.getDbConnectConfig();
         this.dbTableConfig = commandConfig.getCommandConfig();
@@ -126,17 +128,14 @@ public class DatabaseRecordWriter implements Writer {
         Record record = new Record();
         for(int rowIndex = 0; rowIndex < batchSize; rowIndex ++) {
             for(int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-                log.debug("column: {}, type: {}", columnIndex, root.getFieldVectors().get(columnIndex));
+                log.info("column: {}, type: {}", columnIndex, root.getFieldVectors().get(columnIndex));
                 columnName = root.getVector(columnIndex).getField().getName().toLowerCase();
 
                 record.set(columnName, this.getValue(root.getFieldVectors().get(columnIndex), rowIndex));
             }
-            try{
-                this.insertData(connection, commandConfig.getResultSchema(), dbTableConfig.tableName(), record.getData());
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-            log.debug("record: {}", record);
+
+            this.insertData(connection, commandConfig.getResultSchema(), dbTableConfig.tableName(), record.getData());
+            log.info("record: {}", record);
         }
     }
 
@@ -154,24 +153,12 @@ public class DatabaseRecordWriter implements Writer {
         }
 
     }
-    private static String getJdbcType(Field field) {
-        return switch (field.getFieldType().getType().getTypeID()) {
-            case Int -> "INT";
-            case FloatingPoint -> "FLOAT";
-            case Bool -> "BOOLEAN";
-            case Date -> "DATE";
-            case Time -> "TIME";
-            case Timestamp -> "TIMESTAMP";
-            case Decimal -> "DECIMAL(10, 2)";
-            case Binary -> "BLOB";
-            case FixedSizeBinary -> "BINARY";
-            default -> "VARCHAR(255)";
-        };
-    }
+
+    abstract protected String getJdbcType(Field field);
 
     private void createTableFromSchema(Connection connection,Schema schema, String tableName){
 
-        StringBuilder createTableSql = new StringBuilder("CREATE TABLE \""+ tableName + "\" (");
+        StringBuilder createTableSql = new StringBuilder("CREATE TABLE "+ this.wrapTableName(tableName) + " (");
         for (Field field : schema.getFields()) {
             createTableSql.append("\n   ");
             createTableSql.append(field.getName());
@@ -183,15 +170,16 @@ public class DatabaseRecordWriter implements Writer {
         try{
             Statement stmt = connection.createStatement();
             stmt.executeUpdate(createTableSql.toString());
+            stmt.close();
         } catch (SQLException e) {
-            log.error("create table error: {}", e.getMessage());
+            log.error("create table sql:{} error: {}", createTableSql, e.getMessage());
             throw new RuntimeException(e);
         }
 
     }
 
-    public void insertData(Connection conn, Schema arrowSchema, String tableName, Map<String, Object> data) throws SQLException {
-        StringBuilder sql = new StringBuilder("INSERT INTO \""+ tableName +"\" (");
+    public void insertData(Connection conn, Schema arrowSchema, String tableName, Map<String, Object> data) {
+        StringBuilder sql = new StringBuilder("INSERT INTO "+ this.wrapTableName(tableName) +" (");
         StringBuilder values = new StringBuilder("VALUES (");
 
         List<Field> fields = arrowSchema.getFields();
@@ -217,15 +205,22 @@ public class DatabaseRecordWriter implements Writer {
         values.append(")");
 
         sql.append(values);
-
-        try (PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+        log.info(sql.toString());
+        try {
+            PreparedStatement stmt = conn.prepareStatement(sql.toString());
             int index = 1;
             for (Object value : valueList) {
                 setStatementParameter(stmt, index++, value);
             }
 
             stmt.executeUpdate();
+            stmt.close();
+        } catch (SQLException e) {
+            log.error("insert data error: sql:\"{}\" error:\"{}\"", sql, e.getMessage());
+            throw new RuntimeException(e);
         }
+
+
     }
 
     private static void setStatementParameter(PreparedStatement stmt, int index, Object value) throws SQLException {
@@ -258,16 +253,6 @@ public class DatabaseRecordWriter implements Writer {
         }
     }
 
-    private boolean isExistsTable(Connection connection, String tableName){
-        try{
-            DatabaseMetaData metaData = connection.getMetaData();
-            ResultSet resultSet = metaData.getTables(null, null, tableName, new String[]{"TABLE"}); {
-                return resultSet.next();
-            }
-        } catch(SQLException e) {
-            log.error("check whether table has existed error: {}", e.getMessage());
-            throw new RuntimeException(e);
-        }
-    }
+    abstract protected boolean isExistsTable(Connection connection, String tableName);
 
 }

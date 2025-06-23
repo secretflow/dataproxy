@@ -71,7 +71,7 @@ public class CompositeFlightProducer implements FlightProducer {
         try {
             this.getProducer(ticket).getStream(context, ticket, listener);
         } catch (Exception e) {
-            log.error("doGet is happened error", e);
+            log.error("doGet happen error", e);
             throw CallStatus.INTERNAL
                     .withCause(e)
                     .withDescription(e.getMessage())

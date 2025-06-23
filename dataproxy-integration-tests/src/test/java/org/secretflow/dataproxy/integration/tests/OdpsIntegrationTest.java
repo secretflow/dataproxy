@@ -43,14 +43,13 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 import org.secretflow.dataproxy.common.utils.ArrowUtil;
+import org.secretflow.dataproxy.core.config.FlightServerContext;
 import org.secretflow.dataproxy.integration.tests.utils.OdpsTestUtil;
+import org.secretflow.dataproxy.server.DataProxyFlightServer;
 import org.secretflow.v1alpha1.common.Common;
 import org.secretflow.v1alpha1.kusciaapi.Domaindata;
 import org.secretflow.v1alpha1.kusciaapi.Domaindatasource;
@@ -77,12 +76,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * @author yuexie
@@ -146,6 +142,44 @@ public class OdpsIntegrationTest extends BaseArrowFlightServerTest {
     @TempDir
     private static Path tempDir;
     private static Path tmpFilePath;
+
+    @BeforeAll
+    static public void startServer() {
+
+        assertNotEquals("", OdpsTestUtil.getOdpsProject(), "odps project is empty");
+        assertNotEquals("", OdpsTestUtil.getOdpsEndpoint(), "odps endpoint is empty");
+        assertNotEquals("", OdpsTestUtil.getAccessKeyId(), "odps access key id is empty");
+        assertNotEquals("", OdpsTestUtil.getAccessKeySecret(), "odps access key secret is empty");
+
+        dataProxyFlightServer = new DataProxyFlightServer(FlightServerContext.getInstance().getFlightServerConfig());
+
+        assertDoesNotThrow(() -> {
+            serverThread = new Thread(() -> {
+                try {
+                    dataProxyFlightServer.start();
+                    SERVER_START_LATCH.countDown();
+                    dataProxyFlightServer.awaitTermination();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } catch (Exception e) {
+                    fail("Exception was thrown: " + e.getMessage());
+                }
+            });
+        });
+
+        assertDoesNotThrow(() -> {
+            serverThread.start();
+            SERVER_START_LATCH.await();
+        });
+    }
+
+    @AfterAll
+    static void stopServer() {
+        assertDoesNotThrow(() -> {
+            if (dataProxyFlightServer != null) dataProxyFlightServer.close();
+            serverThread.interrupt();
+        });
+    }
 
     @Test
     @Order(2)

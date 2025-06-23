@@ -16,11 +16,13 @@
 
 package org.secretflow.dataproxy.plugin.database.utils;
 
+import lombok.extern.slf4j.Slf4j;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 
+@Slf4j
 public class OracleUtil {
     public static Connection initOracle(DatabaseConnectConfig config) {
         String endpoint = config.endpoint();
@@ -44,7 +46,7 @@ public class OracleUtil {
                 conn = DriverManager.getConnection(String.format("jdbc:oracle:thin:@%s:%d:%s", ip, port, config.database()));
             }
         } catch (Exception e) {
-            System.out.println("database init error");
+            log.error("database init error \"{}\"", e.getMessage());
             throw new RuntimeException(e);
         }
         return conn;

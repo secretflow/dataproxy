@@ -38,49 +38,13 @@ import static org.junit.jupiter.api.Assertions.fail;
  **/
 public class BaseArrowFlightServerTest {
 
-    private static DataProxyFlightServer dataProxyFlightServer;
+    protected static DataProxyFlightServer dataProxyFlightServer;
     protected FlightClient client;
     protected BufferAllocator allocator;
-    private static Thread serverThread;
-    private static final CountDownLatch SERVER_START_LATCH = new CountDownLatch(1);
+    protected static Thread serverThread;
+    protected static final CountDownLatch SERVER_START_LATCH = new CountDownLatch(1);
 
-    @BeforeAll
-    public static void startServer() {
 
-        assertNotEquals("", OdpsTestUtil.getOdpsProject(), "odps project is empty");
-        assertNotEquals("", OdpsTestUtil.getOdpsEndpoint(), "odps endpoint is empty");
-        assertNotEquals("", OdpsTestUtil.getAccessKeyId(), "odps access key id is empty");
-        assertNotEquals("", OdpsTestUtil.getAccessKeySecret(), "odps access key secret is empty");
-
-        dataProxyFlightServer = new DataProxyFlightServer(FlightServerContext.getInstance().getFlightServerConfig());
-
-        assertDoesNotThrow(() -> {
-            serverThread = new Thread(() -> {
-                try {
-                    dataProxyFlightServer.start();
-                    SERVER_START_LATCH.countDown();
-                    dataProxyFlightServer.awaitTermination();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } catch (Exception e) {
-                    fail("Exception was thrown: " + e.getMessage());
-                }
-            });
-        });
-
-        assertDoesNotThrow(() -> {
-            serverThread.start();
-            SERVER_START_LATCH.await();
-        });
-    }
-
-    @AfterAll
-    static void stopServer() {
-        assertDoesNotThrow(() -> {
-            if (dataProxyFlightServer != null) dataProxyFlightServer.close();
-            serverThread.interrupt();
-        });
-    }
 
     @BeforeEach
     public void setUp() {

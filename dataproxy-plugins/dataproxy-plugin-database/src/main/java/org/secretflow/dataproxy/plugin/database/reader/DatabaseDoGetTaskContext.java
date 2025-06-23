@@ -74,8 +74,6 @@ public class DatabaseDoGetTaskContext implements AutoCloseable{
     @Override
     public void close() throws Exception {
         this.cancel();
-        // close database connection
-        taskConfig.getContext().getResultSet().close();
         executorService.shutdown();
     }
 

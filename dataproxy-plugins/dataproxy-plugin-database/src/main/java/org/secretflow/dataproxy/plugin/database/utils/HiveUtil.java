@@ -19,8 +19,10 @@ package org.secretflow.dataproxy.plugin.database.utils;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
+import lombok.extern.slf4j.Slf4j;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 
+@Slf4j
 public class HiveUtil {
     
     public static Connection initHive(DatabaseConnectConfig config) {
@@ -46,7 +48,7 @@ public class HiveUtil {
                 conn = DriverManager.getConnection(String.format("jdbc:hive2://%s:%s/%s", ip, port, config.database()));
             }
         } catch (Exception e) {
-            System.out.printf("database init error %s", e.getMessage());
+            log.error("database init error \"{}\"", e.getMessage());
             throw new RuntimeException(e);
         }
         return conn;

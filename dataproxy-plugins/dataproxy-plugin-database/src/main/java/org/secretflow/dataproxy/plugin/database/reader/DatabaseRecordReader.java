@@ -46,6 +46,7 @@ public class DatabaseRecordReader extends AbstractReader<TaskConfig, Record> {
             record = new Record();
             record.setLast(true);
             this.put(record);
+            resultSet.close();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

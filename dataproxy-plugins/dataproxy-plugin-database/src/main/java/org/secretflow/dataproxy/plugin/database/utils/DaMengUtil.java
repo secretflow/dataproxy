@@ -49,7 +49,7 @@ public class DaMengUtil {
         try{
             conn = DriverManager.getConnection(String.format("jdbc:dm://%s:%s/%s", ip, port, config.database()), config.username(), config.password());
         } catch (Exception e) {
-            System.out.printf("database init error %s", e.getMessage());
+            log.error("database init error \"{}\"", e.getMessage());
             throw new RuntimeException(e);
         }
 

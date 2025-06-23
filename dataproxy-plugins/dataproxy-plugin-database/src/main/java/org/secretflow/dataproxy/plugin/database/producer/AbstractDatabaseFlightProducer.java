@@ -46,14 +46,16 @@ import org.secretflow.dataproxy.core.spi.producer.DataProxyFlightProducer;
 import org.secretflow.dataproxy.plugin.database.utils.DaMengUtil;
 import org.secretflow.dataproxy.plugin.database.utils.HiveUtil;
 import org.secretflow.dataproxy.plugin.database.utils.OracleUtil;
-import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.DamengRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.HiveRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.OracleRecordWriter;
 import org.secretflow.v1alpha1.kusciaapi.Flightdm;
 import org.secretflow.v1alpha1.kusciaapi.Flightinner;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -61,7 +63,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Slf4j
-public abstract class DatabaseFlightProducer extends NoOpFlightProducer implements DataProxyFlightProducer {
+public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer implements DataProxyFlightProducer {
     private final TicketService ticketService = CacheTicketService.getInstance();
     protected String producerName;
 
@@ -71,7 +73,7 @@ public abstract class DatabaseFlightProducer extends NoOpFlightProducer implemen
         ProducerName2Init.put("oracle", OracleUtil::initOracle);
         ProducerName2Init.put("dameng", DaMengUtil::initDaMeng);
     }
-    DatabaseFlightProducer() {
+    AbstractDatabaseFlightProducer() {
         this.setProducerName();
     }
     abstract void setProducerName();
@@ -143,7 +145,7 @@ public abstract class DatabaseFlightProducer extends NoOpFlightProducer implemen
             }
 
             if (param instanceof DatabaseCommandConfig<?> dbCommandConfig) {
-                DatabaseDoGetContext dbDoGetContext = new DatabaseDoGetContext(dbCommandConfig, DatabaseFlightProducer.ProducerName2Init.get(this.producerName));
+                DatabaseDoGetContext dbDoGetContext = new DatabaseDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
 
                 List<TaskConfig> taskConfigs = dbDoGetContext.getTaskConfigs();
                 dbReader = new DatabaseReader(new RootAllocator(), taskConfigs.get(0));
@@ -196,9 +198,15 @@ public abstract class DatabaseFlightProducer extends NoOpFlightProducer implemen
                 Flightdm.TicketDomainDataQuery unpack = any.unpack(Flightdm.TicketDomainDataQuery.class);
                 DatabaseWriteConfig writeConfig = ticketService.getParamWrapper(unpack.getDomaindataHandle().getBytes()).unwrap(DatabaseWriteConfig.class);
 
-                DatabaseRecordWriter writer;
+                AbstractDatabaseRecordWriter writer;
                 int count = 0;
-                writer = new DatabaseRecordWriter(writeConfig, DatabaseFlightProducer.ProducerName2Init.get(this.producerName));
+                writer = switch (this.producerName) {
+                    case "hive" -> new HiveRecordWriter(writeConfig, ProducerName2Init.get(this.producerName));
+                    case "oracle" -> new OracleRecordWriter(writeConfig, ProducerName2Init.get(this.producerName));
+                    case "dameng" -> new DamengRecordWriter(writeConfig, ProducerName2Init.get(this.producerName));
+                    default -> throw new IllegalStateException("Unexpected value: " + this.producerName);
+                };
+
                 String askMsg;
                 VectorSchemaRoot vectorSchemaRoot;
                 while (flightStream.next()) {

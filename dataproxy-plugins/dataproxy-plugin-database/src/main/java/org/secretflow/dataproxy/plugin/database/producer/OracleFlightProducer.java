@@ -16,7 +16,7 @@
 
 package org.secretflow.dataproxy.plugin.database.producer;
 
-public class OracleFlightProducer extends DatabaseFlightProducer{
+public class OracleFlightProducer extends AbstractDatabaseFlightProducer {
 
     @Override
     void setProducerName() {

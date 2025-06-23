@@ -16,7 +16,7 @@
 
 package org.secretflow.dataproxy.plugin.database.producer;
 
-public class DaMengFlightProducer extends DatabaseFlightProducer {
+public class DaMengFlightProducer extends AbstractDatabaseFlightProducer {
 
     @Override
     void setProducerName() {

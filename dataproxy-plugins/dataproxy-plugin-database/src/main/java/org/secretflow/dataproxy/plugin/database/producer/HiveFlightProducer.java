@@ -16,7 +16,7 @@
 
 package org.secretflow.dataproxy.plugin.database.producer;
 
-public class HiveFlightProducer extends DatabaseFlightProducer{
+public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
 
     @Override
     void setProducerName() {

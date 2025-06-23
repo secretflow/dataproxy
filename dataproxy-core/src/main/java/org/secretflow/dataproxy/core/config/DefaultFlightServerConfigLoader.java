@@ -60,6 +60,6 @@ public class DefaultFlightServerConfigLoader implements ConfigLoader {
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
-        properties.put(FlightServerConfigKey.PORT, 8023);
+        properties.put(FlightServerConfigKey.PORT, 8024);
     }
 }

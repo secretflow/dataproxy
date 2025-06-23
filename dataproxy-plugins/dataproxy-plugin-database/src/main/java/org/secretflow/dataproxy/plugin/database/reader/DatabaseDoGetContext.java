@@ -181,7 +181,7 @@ public class DatabaseDoGetContext {
 
         log.info("whereClause: {}", whereClause);
 
-        return "select " + String.join(",", fields) + " from " + tableName;
+        return "select " + String.join(",", fields) + " from " + (tableName);
     }
 
     private void loadLazyConfig(Throwable throwable) {
