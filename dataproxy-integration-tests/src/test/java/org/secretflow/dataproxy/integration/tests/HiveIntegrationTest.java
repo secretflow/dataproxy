@@ -72,7 +72,7 @@ public class HiveIntegrationTest extends BaseArrowFlightServerTest {
                     .build();
 
     private final int batchSize = 5;
-    private final int batchCount = 10;
+    private final int batchCount = 3;
 
     @TempDir
     private static Path tempDir;

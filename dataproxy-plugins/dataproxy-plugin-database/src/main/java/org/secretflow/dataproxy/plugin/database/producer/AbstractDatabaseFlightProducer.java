@@ -31,8 +31,7 @@ import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
 import org.secretflow.dataproxy.plugin.database.config.TaskConfig;
 import org.secretflow.dataproxy.plugin.database.converter.DatabaseParamConverter;
-import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
-import org.secretflow.dataproxy.plugin.database.reader.DatabaseReader;
+import org.secretflow.dataproxy.plugin.database.reader.*;
 
 import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
@@ -136,7 +135,7 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
         ParamWrapper paramWrapper = ticketService.getParamWrapper(ticket.getBytes());
         ArrowReader dbReader = null;
-
+        AbstractDatabaseDoGetContext dbDoGetContext = null;
         try {
             Object param = paramWrapper.param();
 
@@ -145,7 +144,12 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
             }
 
             if (param instanceof DatabaseCommandConfig<?> dbCommandConfig) {
-                DatabaseDoGetContext dbDoGetContext = new DatabaseDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
+                dbDoGetContext = switch (this.producerName) {
+                    case "hive" -> new HiveDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
+                    case "oracle" -> new OracleDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
+                    case "dameng" -> new DamengDoGetContext(dbCommandConfig, AbstractDatabaseFlightProducer.ProducerName2Init.get(this.producerName));
+                    default -> throw new IllegalStateException("Unexpected value: " + this.producerName);
+                };
 
                 List<TaskConfig> taskConfigs = dbDoGetContext.getTaskConfigs();
                 dbReader = new DatabaseReader(new RootAllocator(), taskConfigs.get(0));
@@ -176,6 +180,9 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
             try {
                 if (dbReader != null) {
                     dbReader.close();
+                }
+                if (dbDoGetContext != null) {
+                    dbDoGetContext.close();
                 }
             } catch (Exception e) {
                 log.error("close {} read error", this.producerName, e);

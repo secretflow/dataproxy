@@ -205,7 +205,6 @@ public abstract class AbstractDatabaseRecordWriter implements Writer {
         values.append(")");
 
         sql.append(values);
-        log.info(sql.toString());
         try {
             PreparedStatement stmt = conn.prepareStatement(sql.toString());
             int index = 1;

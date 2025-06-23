@@ -21,10 +21,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import org.secretflow.dataproxy.plugin.database.reader.AbstractDatabaseDoGetContext;
 
 @Slf4j
 @Getter
@@ -32,30 +29,20 @@ import java.sql.SQLException;
 public class TaskConfig {
 
     private final long startIndex;
-    private long count;
 
     @JsonIgnore
-    private final DatabaseDoGetContext context;
+    private final AbstractDatabaseDoGetContext context;
 
     @Setter
     private long currentIndex;
-
 
     @Getter
     @Setter
     private Throwable error;
 
-    public TaskConfig(DatabaseDoGetContext context, long startIndex) {
+    public TaskConfig(AbstractDatabaseDoGetContext context, long startIndex) {
         this.context = context;
         this.startIndex = startIndex;
         this.currentIndex = startIndex;
-        try {
-            ResultSet rs = this.getContext().getResultSet();
-            rs.last();
-            this.count = rs.getRow();
-            rs.beforeFirst();
-        } catch (SQLException e) {
-            log.error("get result row error: \"{}\"", e.getMessage());
-        }
     }
 }

@@ -45,10 +45,9 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 @Slf4j
-public class DatabaseDoGetContext {
+public abstract class AbstractDatabaseDoGetContext {
 
     private final DatabaseCommandConfig<?> dbCommandConfig;
-
 
     @Getter
     private Schema schema;
@@ -56,6 +55,8 @@ public class DatabaseDoGetContext {
     @Getter
     private ResultSet resultSet;
 
+    private Statement queryStmt;
+    private Connection conn;
     @Getter
     private DatabaseMetaData databaseMetaData;
 
@@ -68,7 +69,7 @@ public class DatabaseDoGetContext {
     private final Function<DatabaseConnectConfig, Connection> initDatabase;
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
-    public DatabaseDoGetContext(DatabaseCommandConfig<?> config, Function<DatabaseConnectConfig, Connection> initDatabase) {
+    public AbstractDatabaseDoGetContext(DatabaseCommandConfig<?> config, Function<DatabaseConnectConfig, Connection> initDatabase) {
         this.dbCommandConfig = config;
         this.initDatabase = initDatabase;
         prepare();
@@ -82,27 +83,19 @@ public class DatabaseDoGetContext {
         DatabaseConnectConfig dbConnectConfig = dbCommandConfig.getDbConnectConfig();
 
         String querySql;
-        Connection conn;
-        try {
-            conn = this.initDatabase.apply(dbConnectConfig);
-            if (dbCommandConfig instanceof ScqlCommandJobConfig scqlReadJobConfig) {
-                querySql = scqlReadJobConfig.getCommandConfig();
-            } else if (dbCommandConfig instanceof DatabaseTableQueryConfig dbTableQueryConfig) {
-                DatabaseTableConfig tableConfig = dbTableQueryConfig.getCommandConfig();
-                this.tableName = tableConfig.tableName();
-                querySql = this.buildSql(this.tableName, tableConfig.columns().stream().map(Common.DataColumn::getName).toList(), tableConfig.partition());
-                this.schema = dbCommandConfig.getResultSchema();
-            } else {
-                throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Unsupported read parameter type: " + dbCommandConfig.getClass());
-            }
-            this.executeSqlTaskAndHandleResult(conn, this.tableName, querySql);
-            conn.close();
-        } catch (SQLException e) {
-            log.error("sql execute error", e);
-            throw new RuntimeException(e);
+
+        conn = this.initDatabase.apply(dbConnectConfig);
+        if (dbCommandConfig instanceof ScqlCommandJobConfig scqlReadJobConfig) {
+            querySql = scqlReadJobConfig.getCommandConfig();
+        } else if (dbCommandConfig instanceof DatabaseTableQueryConfig dbTableQueryConfig) {
+            DatabaseTableConfig tableConfig = dbTableQueryConfig.getCommandConfig();
+            this.tableName = tableConfig.tableName();
+            querySql = this.buildSql(this.tableName, tableConfig.columns().stream().map(Common.DataColumn::getName).toList(), tableConfig.partition());
+            this.schema = dbCommandConfig.getResultSchema();
+        } else {
+            throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Unsupported read parameter type: " + dbCommandConfig.getClass());
         }
-
-
+        this.executeSqlTaskAndHandleResult(conn, this.tableName, querySql);
     }
 
     private void executeSqlTaskAndHandleResult(Connection connection, String tableName, String querySql) {
@@ -111,12 +104,11 @@ public class DatabaseDoGetContext {
         try {
             readWriteLock.writeLock().lock();
             this.databaseMetaData = connection.getMetaData();
-            Statement stmt = connection.createStatement();
-            resultSet = stmt.executeQuery(querySql);
+            queryStmt = connection.createStatement();
+            resultSet = queryStmt.executeQuery(querySql);
             if (dbCommandConfig.getDbTypeEnum() == DatabaseTypeEnum.SQL) {
                 this.initArrowSchemaFromColumns(connection.getMetaData(), tableName);
             }
-            stmt.close();
 
         } catch (SQLException e) {
             log.error("sql execute error", e);
@@ -129,6 +121,18 @@ public class DatabaseDoGetContext {
             readWriteLock.writeLock().unlock();
             loadLazyConfig(throwable);
         }
+    }
+
+    public void close() {
+        try{
+            queryStmt.close();
+            resultSet.close();
+            conn.close();
+        } catch (SQLException e) {
+            log.error("query jdbc close error: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+
     }
 
     private static ArrowType getArrowType(String jdbcType) {
@@ -170,17 +174,7 @@ public class DatabaseDoGetContext {
         schema = new Schema(fields);
     }
 
-    private String buildSql(String tableName, List<String> fields, String whereClause) {
-        final Pattern columnOrValuePattern = Pattern.compile("^[\\u00b7A-Za-z0-9\\u4e00-\\u9fa5\\-_,.]*$");
-
-        if (!columnOrValuePattern.matcher(tableName).matches()) {
-            throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid tableName:" + tableName);
-        }
-
-        log.info("whereClause: {}", whereClause);
-
-        return "select " + String.join(",", fields) + " from " + (tableName);
-    }
+    protected abstract String buildSql(String tableName, List<String> fields, String whereClause);
 
     private void loadLazyConfig(Throwable throwable) {
         tickerWrapperMapRwLock.writeLock().lock();

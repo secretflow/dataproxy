@@ -24,16 +24,17 @@ public class DamengRecordWriter extends AbstractDatabaseRecordWriter{
 
     @Override
     protected boolean isExistsTable(Connection connection, String tableName) {
+        String sql = "SELECT COUNT(*) FROM dba_tables WHERE table_name = '" + tableName + "'";
         try {
             Statement stmt = connection.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM dba_tables WHERE table_name = " + tableName);
+            ResultSet rs = stmt.executeQuery(sql);
             rs.next();
             boolean exists = rs.getInt(1) > 0;
             rs.close();
             stmt.close();
             return exists;
         } catch (Exception e) {
-            log.error("check whether table has existed error: " + e.getMessage());
+            log.error("check whether table has existed sql: {} error: " + e.getMessage(), sql);
             throw new RuntimeException(e);
         }
     }

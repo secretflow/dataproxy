@@ -68,7 +68,7 @@ public class OracleIntegrationTest extends BaseArrowFlightServerTest {
             Domaindata.DomainData.newBuilder()
                     .setDatasourceId("datasourceId")
                     .setName("domainDataName")
-                    .setRelativeUri("integration_test_table")
+                    .setRelativeUri("integrationtesttable")
                     .setDomaindataId("domainDataId")
                     .setType("table")
                     .addAllColumns(columns)
@@ -81,7 +81,7 @@ public class OracleIntegrationTest extends BaseArrowFlightServerTest {
     private static Path tempDir;
     private static Path tmpFilePath;
 
-//    @BeforeAll
+    @BeforeAll
     static public void startServer() {
 
         assertNotEquals("", DamengTestUtil.getDamengDatabase(), "dameng database is empty");
@@ -111,7 +111,7 @@ public class OracleIntegrationTest extends BaseArrowFlightServerTest {
         });
     }
 
-//    @AfterAll
+    @AfterAll
     static void stopServer() {
         assertDoesNotThrow(() -> {
             if (dataProxyFlightServer != null) dataProxyFlightServer.close();

@@ -57,7 +57,6 @@ public class DatabaseDoGetTaskContext implements AutoCloseable{
                 reader.read();
                 sender.putOver();
                 hasNext.set(false);
-                log.info("read finished...");
             } catch (InterruptedException e) {
                 log.error("read interrupted", e);
                 Thread.currentThread().interrupt();

@@ -44,17 +44,12 @@ public class DatabaseReader extends ArrowReader {
             throw new RuntimeException(e);
         });
 
-        if (taskConfig.getCount() == 0) {
-            log.warn("TaskConfig count is 0, skip read data");
-            return false;
-        }
-
         if(dbDoGetTaskContext == null) {
             prepare();
         }
 
         if(dbDoGetTaskContext.hasNext()) {
-            dbDoGetTaskContext.putNextPatchData();
+            dbDoGetTaskContext.putNextPatchData();   // 出现了问题 阻塞住了
             return true;
         }
         return false;

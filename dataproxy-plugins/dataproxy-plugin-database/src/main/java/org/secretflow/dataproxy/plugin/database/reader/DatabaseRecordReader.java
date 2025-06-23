@@ -16,6 +16,7 @@
 
 package org.secretflow.dataproxy.plugin.database.reader;
 
+import lombok.extern.slf4j.Slf4j;
 import org.secretflow.dataproxy.plugin.database.config.TaskConfig;
 import org.secretflow.dataproxy.plugin.database.utils.Record;
 import org.secretflow.dataproxy.core.reader.AbstractReader;
@@ -24,9 +25,11 @@ import org.secretflow.dataproxy.core.reader.Sender;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+@Slf4j
 public class DatabaseRecordReader extends AbstractReader<TaskConfig, Record> {
 
     private final ResultSet resultSet;
+
     public DatabaseRecordReader(TaskConfig param, Sender<Record> sender, ResultSet rs){
         super(param, sender);
         this.resultSet = rs;
@@ -34,20 +37,18 @@ public class DatabaseRecordReader extends AbstractReader<TaskConfig, Record> {
 
     @Override
     protected void read(TaskConfig param) {
-        int recordCount = 0;
         Record record;
         try {
             while(resultSet.next()) {
                 record = new Record(resultSet);
-                recordCount++;
                 this.put(record);
             }
-
+            // empty record, just is used for last flag
             record = new Record();
             record.setLast(true);
             this.put(record);
-            resultSet.close();
         } catch (Exception e) {
+            log.error("read resultset error: {}", e.getMessage());
             throw new RuntimeException(e);
         }
     }
