@@ -49,7 +49,7 @@ public class DatabaseReader extends ArrowReader {
         }
 
         if(dbDoGetTaskContext.hasNext()) {
-            dbDoGetTaskContext.putNextPatchData();   // 出现了问题 阻塞住了
+            dbDoGetTaskContext.putNextPatchData();
             return true;
         }
         return false;

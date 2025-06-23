@@ -107,6 +107,7 @@ public class DatabaseRecordSender extends AbstractSender<Record> {
 
                 }
             }
+            columns.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -154,6 +155,7 @@ public class DatabaseRecordSender extends AbstractSender<Record> {
                 log.debug("columnName: {} not in fieldVectors", name);
             }
         }
+        columns.close();
         isInit = true;
     }
 }

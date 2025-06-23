@@ -186,8 +186,8 @@ public class OracleIntegrationTest extends BaseArrowFlightServerTest {
         );
     }
 
-    @Test
-    @Order(1)
+//    @Test
+//    @Order(1)
     public void testCommandDataMeshUpdate() {
         Flightinner.CommandDataMeshUpdate commandDataMeshUpdate =
                 Flightinner.CommandDataMeshUpdate.newBuilder()

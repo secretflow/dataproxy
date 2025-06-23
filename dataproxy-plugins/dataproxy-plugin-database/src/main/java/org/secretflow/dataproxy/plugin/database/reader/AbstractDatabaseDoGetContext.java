@@ -171,6 +171,7 @@ public abstract class AbstractDatabaseDoGetContext {
             Field field = new Field(columnName, FieldType.nullable(arrowType), null);
             fields.add(field);
         }
+        columns.close();
         schema = new Schema(fields);
     }
 
