@@ -187,13 +187,9 @@ public class DatabaseDoGetContext {
     private void loadLazyConfig(Throwable throwable) {
         tickerWrapperMapRwLock.writeLock().lock();
         try {
-            // 1. check if the ticketWrapperMap is empty
             if (ticketWrapperMap.isEmpty()) {
-                // If the ticketWrapperMap is empty, will generate task config when get flight info request
                 return;
             }
-            // If the ticketWrapperMap is not empty, will set taskConfig from result to ParamWrapper
-            // 2. iterate through the ticketWrapperMap and set the taskConfig from result
             List<TaskConfig> taskConfigs = getTaskConfigs();
             if (taskConfigs.isEmpty()) {
                 throw new IllegalArgumentException("#getTaskConfigs is empty");
@@ -213,7 +209,6 @@ public class DatabaseDoGetContext {
                     log.info("Load lazy taskConfig: {}", JsonUtils.toString(taskConfig));
                     paramWrapper.setParamIfAbsent(taskConfig);
                 } else {
-                    // Set the remaining ticketWrapperMap to a default TaskConfig that doesn't read data
                     log.info("Set the remaining ticketWrapperMap to a default TaskConfig that doesn't read data. index: {},", index);
                     TaskConfig taskConfig = new TaskConfig(this, 0, 0);
                     taskConfig.setError(throwable);

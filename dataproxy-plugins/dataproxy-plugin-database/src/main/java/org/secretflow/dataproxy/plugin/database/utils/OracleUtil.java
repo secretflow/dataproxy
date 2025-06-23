@@ -25,7 +25,7 @@ public class OracleUtil {
     public static Connection initOracle(DatabaseConnectConfig config) {
         String endpoint = config.endpoint();
         String ip;
-        int port = 1521; // 默认端口
+        int port = 1521; // default port
 
         if (endpoint.contains(":")) {
             String[] parts = endpoint.split(":");
@@ -38,7 +38,6 @@ public class OracleUtil {
         }
         Connection conn;
         try{
-
             if(!config.username().isEmpty() && !config.password().isEmpty()) {
                 conn = DriverManager.getConnection(String.format("jdbc:oracle:thin:@%s:%d:%s", ip, port, config.database()), config.username(), config.password());
             } else {
@@ -48,7 +47,6 @@ public class OracleUtil {
             System.out.println("database init error");
             throw new RuntimeException(e);
         }
-
         return conn;
 
     }

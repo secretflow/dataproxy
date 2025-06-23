@@ -36,11 +36,8 @@ public class DatabaseParamConverter implements DataProxyParamConverter<ScqlComma
         Domaindata.DomainData domaindata = request.getDomaindata();
 
         String tableName = domaindata.getRelativeUri();
-
         String partitionSpec = request.getQuery().getPartitionSpec();
-
         DatabaseTableConfig dbTableConfig = new DatabaseTableConfig(tableName, partitionSpec, domaindata.getColumnsList());
-
         return new DatabaseTableQueryConfig(convert(db), dbTableConfig);
     }
 
@@ -48,15 +45,12 @@ public class DatabaseParamConverter implements DataProxyParamConverter<ScqlComma
     public DatabaseWriteConfig convert(Flightinner.CommandDataMeshUpdate request) {
         Domaindatasource.DatabaseDataSourceInfo db = request.getDatasource().getInfo().getDatabase();
         Domaindata.DomainData domainData = request.getDomaindata();
-
         String tableName = domainData.getRelativeUri();
-
         String partitionSpec = request.getUpdate().getPartitionSpec();
         DatabaseTableConfig dbtableConfig = new DatabaseTableConfig(tableName, partitionSpec, domainData.getColumnsList());
         return new DatabaseWriteConfig(convert(db), dbtableConfig);
 
     }
-
 
     private static DatabaseConnectConfig convert(Domaindatasource.DatabaseDataSourceInfo db) {
         return new DatabaseConnectConfig(db.getUser(), db.getPassword(), db.getEndpoint(), db.getDatabase());

@@ -26,7 +26,7 @@ public class HiveUtil {
     public static Connection initHive(DatabaseConnectConfig config) {
         String endpoint = config.endpoint();
         String ip;
-        int port = 10000; // 默认端口
+        int port = 10000; // default port
 
         if (endpoint.contains(":")) {
             String[] parts = endpoint.split(":");
@@ -39,7 +39,7 @@ public class HiveUtil {
         }
         Connection conn;
         try{
-            // hive支持无认证访问
+            // hive Authentication None
             if(!config.username().isEmpty() && !config.password().isEmpty()) {
                 conn = DriverManager.getConnection(String.format("jdbc:hive2://%s:%s/%s", ip, port, config.database()), config.username(), config.password());
             } else {
@@ -49,7 +49,6 @@ public class HiveUtil {
             System.out.printf("database init error %s", e.getMessage());
             throw new RuntimeException(e);
         }
-
         return conn;
 
     }

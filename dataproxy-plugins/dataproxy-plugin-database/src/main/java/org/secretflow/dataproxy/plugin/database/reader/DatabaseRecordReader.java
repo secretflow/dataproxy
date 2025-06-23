@@ -43,7 +43,6 @@ public class DatabaseRecordReader extends AbstractReader<TaskConfig, Record> {
                 this.put(record);
             }
 
-            // 最后一个放入空的record设置last的tag，
             record = new Record();
             record.setLast(true);
             this.put(record);

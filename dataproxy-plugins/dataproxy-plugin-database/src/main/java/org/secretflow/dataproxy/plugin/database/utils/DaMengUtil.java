@@ -34,7 +34,7 @@ public class DaMengUtil {
 
         String endpoint = config.endpoint();
         String ip;
-        int port = 5236; // 默认端口
+        int port = 5236; // default port
 
         if (endpoint.contains(":")) {
             String[] parts = endpoint.split(":");

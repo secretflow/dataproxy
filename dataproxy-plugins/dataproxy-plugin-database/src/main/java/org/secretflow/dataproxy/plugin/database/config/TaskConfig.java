@@ -53,6 +53,5 @@ public class TaskConfig {
         this.count = count;
         this.compress = compress;
         this.currentIndex = startIndex;
-        log.info("get {}", count);
     }
 }

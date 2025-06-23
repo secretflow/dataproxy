@@ -16,7 +16,6 @@
 
 package org.secretflow.dataproxy.plugin.database.reader;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -33,9 +32,6 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/*
- * 用来和reader交互，从reader读取数据，sender负责将数据发送到arrow flighter server
- */
 @Slf4j
 public class DatabaseRecordSender extends AbstractSender<Record> {
     private final static Map<ArrowType.ArrowTypeID, ValueConversionStrategy> ARROW_TYPE_ID_FIELD_CONSUMER_MAP = new HashMap<>();
@@ -50,10 +46,8 @@ public class DatabaseRecordSender extends AbstractSender<Record> {
         TinyIntVectorConverter tinyIntVectorConverter = new TinyIntVectorConverter(new ByteValueVisitor(), smallIntVectorConverter);
         BigIntVectorConverter bigIntVectorConverter = new BigIntVectorConverter(new LongValueVisitor(), tinyIntVectorConverter);
         IntVectorConverter intVectorConverter = new IntVectorConverter(new IntegerValueVisitor(), bigIntVectorConverter);
-
         Float4VectorConverter float4VectorConverter = new Float4VectorConverter(new FloatValueVisitor(), null);
         Float8VectorConverter float8VectorConverter = new Float8VectorConverter(new DoubleValueVisitor(), float4VectorConverter);
-
         DateMilliVectorConverter dateMilliVectorConverter = new DateMilliVectorConverter(new LongValueVisitor(), null);
 
         ARROW_TYPE_ID_FIELD_CONSUMER_MAP.put(ArrowType.ArrowTypeID.Int, intVectorConverter);

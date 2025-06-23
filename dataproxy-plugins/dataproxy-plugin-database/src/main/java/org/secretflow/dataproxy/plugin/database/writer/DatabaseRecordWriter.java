@@ -142,7 +142,7 @@ public class DatabaseRecordWriter implements Writer {
 
     @Override
     public void flush() {
-
+        // do nothing
     }
 
     public void close() {
@@ -154,13 +154,18 @@ public class DatabaseRecordWriter implements Writer {
         }
 
     }
-    // 根据Arrow字段类型转换为JDBC类型
     private static String getJdbcType(Field field) {
         return switch (field.getFieldType().getType().getTypeID()) {
             case Int -> "INT";
-            case Utf8 -> "VARCHAR(255)";
             case FloatingPoint -> "FLOAT";
-            default -> "VARCHAR(255)"; // 默认使用VARCHAR
+            case Bool -> "BOOLEAN";
+            case Date -> "DATE";
+            case Time -> "TIME";
+            case Timestamp -> "TIMESTAMP";
+            case Decimal -> "DECIMAL(10, 2)";
+            case Binary -> "BLOB";
+            case FixedSizeBinary -> "BINARY";
+            default -> "VARCHAR(255)";
         };
     }
 
@@ -185,44 +190,35 @@ public class DatabaseRecordWriter implements Writer {
 
     }
 
-    // 假设传入的 Arrow Schema 和列名对应的 Object 数据
     public void insertData(Connection conn, Schema arrowSchema, String tableName, Map<String, Object> data) throws SQLException {
-        // 构建 SQL 插入语句
         StringBuilder sql = new StringBuilder("INSERT INTO \""+ tableName +"\" (");
         StringBuilder values = new StringBuilder("VALUES (");
 
-        // 获取 Schema 中的所有列
         List<Field> fields = arrowSchema.getFields();
 
-        // 构建列名部分和 VALUES 部分
         List<Object> valueList = new ArrayList<>();
         for (Field field : fields) {
             String columnName = field.getName();
             sql.append(columnName).append(", ");
 
-            // 获取该列的值
             Object value = data.get(columnName);
             if (value == null) {
                 values.append("NULL, ");
             } else {
                 values.append("?, ");
-                valueList.add(value);  // 将数据值添加到 valueList
+                valueList.add(value);
             }
         }
 
-        // 去掉最后的 ", " 并关闭括号
         sql.setLength(sql.length() - 2);
         sql.append(") ");
 
         values.setLength(values.length() - 2);
         values.append(")");
 
-        // 完成 SQL 插入语句
         sql.append(values);
 
-        // 执行插入操作
         try (PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
-            // 设置参数
             int index = 1;
             for (Object value : valueList) {
                 setStatementParameter(stmt, index++, value);
@@ -232,7 +228,6 @@ public class DatabaseRecordWriter implements Writer {
         }
     }
 
-    // 根据不同的列类型，将 Object 转换为合适的 JDBC 数据类型
     private static void setStatementParameter(PreparedStatement stmt, int index, Object value) throws SQLException {
         if (value == null) {
             stmt.setNull(index, Types.NULL);
@@ -249,11 +244,11 @@ public class DatabaseRecordWriter implements Writer {
         } else if (value instanceof Boolean) {
             stmt.setBoolean(index, (Boolean) value);
         } else {
-            stmt.setObject(index, value);  // 默认使用 setObject
+            stmt.setObject(index, value);
         }
     }
 
-    // 如果表格不存在，创建表格
+    // create table when the table not exist
     private void preProcessing(Connection connection, String tableName){
         if(!isExistsTable(connection, tableName)) {
             log.info("database table is not exists, create table successful, table name: {}", tableName);
@@ -273,7 +268,6 @@ public class DatabaseRecordWriter implements Writer {
             log.error("check whether table has existed error: {}", e.getMessage());
             throw new RuntimeException(e);
         }
-
     }
 
 }
