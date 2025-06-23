@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Ant Group Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.secretflow.dataproxy.plugin.database.producer;
 
 import com.google.protobuf.Any;
@@ -27,6 +43,7 @@ import org.secretflow.dataproxy.core.param.ParamWrapper;
 import org.secretflow.dataproxy.core.service.TicketService;
 import org.secretflow.dataproxy.core.service.impl.CacheTicketService;
 import org.secretflow.dataproxy.core.spi.producer.DataProxyFlightProducer;
+import org.secretflow.dataproxy.plugin.database.utils.DaMengUtil;
 import org.secretflow.dataproxy.plugin.database.utils.HiveUtil;
 import org.secretflow.dataproxy.plugin.database.utils.OracleUtil;
 import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
@@ -44,30 +61,20 @@ import java.util.Map;
 import java.util.function.Function;
 
 @Slf4j
-public class DatabaseFlightProducer extends NoOpFlightProducer implements DataProxyFlightProducer {
+public abstract class DatabaseFlightProducer extends NoOpFlightProducer implements DataProxyFlightProducer {
     private final TicketService ticketService = CacheTicketService.getInstance();
-    private final String producerName;
+    protected String producerName;
 
     private static final Map<String, Function<DatabaseConnectConfig, Connection>> ProducerName2Init = new HashMap<>();
     static {
-        ProducerName2Init.put("hive", config -> {
-            try {
-                return HiveUtil.initHive(config);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        ProducerName2Init.put("oracle", config -> {
-            try {
-                return OracleUtil.initOracle(config);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        ProducerName2Init.put("hive", HiveUtil::initHive);
+        ProducerName2Init.put("oracle", OracleUtil::initOracle);
+        ProducerName2Init.put("dameng", DaMengUtil::initDaMeng);
     }
-    DatabaseFlightProducer(String producerName) {
-        this.producerName = producerName;
+    DatabaseFlightProducer() {
+        this.setProducerName();
     }
+    abstract void setProducerName();
     @Override
     public String getProducerName() {
         return producerName;
@@ -184,7 +191,6 @@ public class DatabaseFlightProducer extends NoOpFlightProducer implements DataPr
         if(!"type.googleapis.com/kuscia.proto.api.v1alpha1.datamesh.TicketDomainDataQuery".equals(any.getTypeUrl())) {
             throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "The database write parameter is invalid, type url: " + any.getTypeUrl());
         }
-
         return () -> {
             try {
                 Flightdm.TicketDomainDataQuery unpack = any.unpack(Flightdm.TicketDomainDataQuery.class);
@@ -210,7 +216,7 @@ public class DatabaseFlightProducer extends NoOpFlightProducer implements DataPr
                 ackStream.onCompleted();
                 writer.close();
                 log.info("put data over! all count: {}", count);
-            } catch (InvalidProtocolBufferException | SQLException e) {
+            } catch (InvalidProtocolBufferException e) {
                 throw CallStatus.INVALID_ARGUMENT
                         .withCause(e)
                         .withDescription(e.getMessage())

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 Ant Group Co., Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.secretflow.dataproxy.plugin.database.writer;
 
 import lombok.extern.slf4j.Slf4j;
@@ -6,7 +22,6 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
-
 import org.secretflow.dataproxy.core.writer.Writer;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseTableConfig;
@@ -29,7 +44,7 @@ public class DatabaseRecordWriter implements Writer {
     private final Function<DatabaseConnectConfig, Connection> initFunc;
     private Connection connection;
 
-    public DatabaseRecordWriter(DatabaseWriteConfig commandConfig, Function<DatabaseConnectConfig, Connection> initFunc) throws SQLException {
+    public DatabaseRecordWriter(DatabaseWriteConfig commandConfig, Function<DatabaseConnectConfig, Connection> initFunc) {
         this.commandConfig = commandConfig;
         this.dbConnectConfig = commandConfig.getDbConnectConfig();
         this.dbTableConfig = commandConfig.getCommandConfig();
@@ -43,7 +58,7 @@ public class DatabaseRecordWriter implements Writer {
         }
         return this.initFunc.apply(dbConnectConfig);
     }
-    private void prepare() throws SQLException {
+    private void prepare(){
 
         connection = initDatabaseClient(dbConnectConfig);
 
@@ -145,14 +160,13 @@ public class DatabaseRecordWriter implements Writer {
             case Int -> "INT";
             case Utf8 -> "VARCHAR(255)";
             case FloatingPoint -> "FLOAT";
-            // 添加其他类型映射
             default -> "VARCHAR(255)"; // 默认使用VARCHAR
         };
     }
 
-    private void createTableFromSchema(Connection connection,Schema schema, String tableName) throws SQLException {
+    private void createTableFromSchema(Connection connection,Schema schema, String tableName){
 
-        StringBuilder createTableSql = new StringBuilder("CREATE TABLE "+ tableName + " (");
+        StringBuilder createTableSql = new StringBuilder("CREATE TABLE \""+ tableName + "\" (");
         for (Field field : schema.getFields()) {
             createTableSql.append("\n   ");
             createTableSql.append(field.getName());
@@ -161,14 +175,20 @@ public class DatabaseRecordWriter implements Writer {
             createTableSql.append(",");
         }
         createTableSql.setCharAt(createTableSql.length() - 1, ')');
-        Statement stmt = connection.createStatement();
-        stmt.executeUpdate(createTableSql.toString());
+        try{
+            Statement stmt = connection.createStatement();
+            stmt.executeUpdate(createTableSql.toString());
+        } catch (SQLException e) {
+            log.error("create table error: {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
+
     }
 
     // 假设传入的 Arrow Schema 和列名对应的 Object 数据
     public void insertData(Connection conn, Schema arrowSchema, String tableName, Map<String, Object> data) throws SQLException {
         // 构建 SQL 插入语句
-        StringBuilder sql = new StringBuilder("INSERT INTO "+ tableName +" (");
+        StringBuilder sql = new StringBuilder("INSERT INTO \""+ tableName +"\" (");
         StringBuilder values = new StringBuilder("VALUES (");
 
         // 获取 Schema 中的所有列
@@ -234,20 +254,26 @@ public class DatabaseRecordWriter implements Writer {
     }
 
     // 如果表格不存在，创建表格
-    private void preProcessing(Connection connection, String tableName) throws SQLException {
+    private void preProcessing(Connection connection, String tableName){
         if(!isExistsTable(connection, tableName)) {
-            createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
             log.info("database table is not exists, create table successful, table name: {}", tableName);
+            createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
         } else {
             log.info("database table is exists, table name: {}", tableName);
         }
     }
 
-    private boolean isExistsTable(Connection connection, String tableName) throws SQLException {
-        DatabaseMetaData metaData = connection.getMetaData();
-        ResultSet resultSet = metaData.getTables(null, null, tableName, new String[]{"TABLE"}); {
-            return resultSet.next();
+    private boolean isExistsTable(Connection connection, String tableName){
+        try{
+            DatabaseMetaData metaData = connection.getMetaData();
+            ResultSet resultSet = metaData.getTables(null, null, tableName, new String[]{"TABLE"}); {
+                return resultSet.next();
+            }
+        } catch(SQLException e) {
+            log.error("check whether table has existed error: {}", e.getMessage());
+            throw new RuntimeException(e);
         }
+
     }
 
 }

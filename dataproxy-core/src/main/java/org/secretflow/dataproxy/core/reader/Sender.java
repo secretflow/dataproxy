@@ -16,7 +16,6 @@
 
 package org.secretflow.dataproxy.core.reader;
 
-import java.sql.SQLException;
 
 /**
  * @author yuexie

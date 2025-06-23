@@ -16,16 +16,25 @@
 
 package org.secretflow.dataproxy.plugin.database.utils;
 
-import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
+import lombok.extern.slf4j.Slf4j;
+import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 
-public class OracleUtil {
-    public static Connection initOracle(DatabaseConnectConfig config) {
+@Slf4j
+public class DaMengUtil {
+
+    public static Connection initDaMeng(DatabaseConnectConfig config) {
+        try{
+            Class.forName("dm.jdbc.driver.DmDriver");
+        } catch (ClassNotFoundException e) {
+            log.error("dameng jdbc driver not found");
+            throw new RuntimeException(e);
+        }
+
         String endpoint = config.endpoint();
         String ip;
-        int port = 1521; // 默认端口
+        int port = 5236; // 默认端口
 
         if (endpoint.contains(":")) {
             String[] parts = endpoint.split(":");
@@ -38,14 +47,9 @@ public class OracleUtil {
         }
         Connection conn;
         try{
-
-            if(!config.username().isEmpty() && !config.password().isEmpty()) {
-                conn = DriverManager.getConnection(String.format("jdbc:oracle:thin:@%s:%d:%s", ip, port, config.database()), config.username(), config.password());
-            } else {
-                conn = DriverManager.getConnection(String.format("jdbc:oracle:thin:@%s:%d:%s", ip, port, config.database()));
-            }
+            conn = DriverManager.getConnection(String.format("jdbc:dm://%s:%s/%s", ip, port, config.database()), config.username(), config.password());
         } catch (Exception e) {
-            System.out.println("database init error");
+            System.out.printf("database init error %s", e.getMessage());
             throw new RuntimeException(e);
         }
 

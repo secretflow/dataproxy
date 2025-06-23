@@ -1,5 +1,3 @@
-package org.secretflow.dataproxy.server;
-
 import com.google.protobuf.Any;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.flight.*;
@@ -27,7 +25,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class FlightClientTest {
-    private FlightClient client;
+    private final FlightClient client;
     protected BufferAllocator allocator;
     private final int batchSize = 5;
     private final int batchCount = 10;
@@ -71,9 +69,6 @@ public class FlightClientTest {
     }
     private void writeTestDataWithTable(final Flightinner.CommandDataMeshUpdate msg, final FlightDescriptor descriptor) {
 
-//        assertNotNull(msg.getDomaindata());
-//        assertNotNull(msg.getDomaindata().getColumnsList());
-//        assertFalse(msg.getDomaindata().getColumnsList().isEmpty());
 
         Schema schema = new Schema(msg.getDomaindata().getColumnsList().stream()
                 .map(column ->
@@ -84,7 +79,6 @@ public class FlightClientTest {
             FlightClient.ClientStreamListener clientStreamListener = client.startPut(descriptor, root, new AsyncPutListener());
             clientStreamListener.setUseZeroCopy(true);
             for (int i = 0; i < batchCount; i++) {
-                log.info("1");
                 writeTestData(root, batchSize);
                 clientStreamListener.putNext();
             }
@@ -96,10 +90,10 @@ public class FlightClientTest {
     private final Domaindatasource.DatabaseDataSourceInfo hiveDataSourceInfo =
             Domaindatasource.DatabaseDataSourceInfo
                     .newBuilder()
-                    .setDatabase("dataproxy_alice")
-                    .setEndpoint("127.0.0.1:10000")
-                    .setUser("")
-                    .setPassword("")
+                    .setDatabase("SYSDBA")
+                    .setEndpoint("127.0.0.1:5236")
+                    .setUser("SYSDBA")
+                    .setPassword("SYSDBA001")
                     .build();
     private final Domaindatasource.DataSourceInfo dataSourceInfo =
             Domaindatasource.DataSourceInfo.newBuilder().setDatabase(hiveDataSourceInfo).build();
@@ -108,7 +102,7 @@ public class FlightClientTest {
             Domaindatasource.DomainDataSource.newBuilder()
                     .setDatasourceId("datasourceId")
                     .setName("datasourceName")
-                    .setType("hive")
+                    .setType("dameng")
                     .setInfo(dataSourceInfo)
                     .build();
     List<Common.DataColumn> columns = Arrays.asList(

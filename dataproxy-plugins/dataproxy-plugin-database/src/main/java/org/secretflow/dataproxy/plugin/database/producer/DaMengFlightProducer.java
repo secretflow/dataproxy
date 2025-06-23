@@ -16,10 +16,10 @@
 
 package org.secretflow.dataproxy.plugin.database.producer;
 
-public class HiveFlightProducer extends DatabaseFlightProducer{
+public class DaMengFlightProducer extends DatabaseFlightProducer {
 
     @Override
     void setProducerName() {
-        this.producerName = "hive";
+        this.producerName = "dameng";
     }
 }
