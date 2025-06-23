@@ -178,7 +178,7 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
                     dbReader.close();
                 }
             } catch (Exception e) {
-                log.error("close hive read error", e);
+                log.error("close {} read error", this.producerName, e);
             }
         }
 

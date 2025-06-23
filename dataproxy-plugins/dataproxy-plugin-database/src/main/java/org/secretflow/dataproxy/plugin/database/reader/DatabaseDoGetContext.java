@@ -49,8 +49,6 @@ public class DatabaseDoGetContext {
 
     private final DatabaseCommandConfig<?> dbCommandConfig;
 
-    @Getter
-    private long count;
 
     @Getter
     private Schema schema;
@@ -77,7 +75,7 @@ public class DatabaseDoGetContext {
     }
 
     public List<TaskConfig> getTaskConfigs() {
-        return Collections.singletonList(new TaskConfig(this, 0, count));
+        return Collections.singletonList(new TaskConfig(this, 0));
     }
 
     private void prepare(){
@@ -210,7 +208,7 @@ public class DatabaseDoGetContext {
                     paramWrapper.setParamIfAbsent(taskConfig);
                 } else {
                     log.info("Set the remaining ticketWrapperMap to a default TaskConfig that doesn't read data. index: {},", index);
-                    TaskConfig taskConfig = new TaskConfig(this, 0, 0);
+                    TaskConfig taskConfig = new TaskConfig(this, 0);
                     taskConfig.setError(throwable);
                     paramWrapper.setParamIfAbsent(taskConfig);
                 }

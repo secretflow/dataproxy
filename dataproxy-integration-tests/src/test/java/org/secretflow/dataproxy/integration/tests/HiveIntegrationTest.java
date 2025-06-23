@@ -71,14 +71,14 @@ public class HiveIntegrationTest extends BaseArrowFlightServerTest {
                     .addAllColumns(columns)
                     .build();
 
-    private final int batchSize = 100;
+    private final int batchSize = 5;
     private final int batchCount = 10;
 
     @TempDir
     private static Path tempDir;
     private static Path tmpFilePath;
 
-//    @BeforeAll
+    @BeforeAll
     static public void startServer() {
 
         assertNotEquals("", HiveTestUtil.getHiveDatabase(), "hive database is empty");
@@ -114,25 +114,25 @@ public class HiveIntegrationTest extends BaseArrowFlightServerTest {
         });
     }
 
-//    @Test
-//    @Order(2)
-//    public void testDoGetWithTable() {
-//
-//        final Flightdm.CommandDomainDataQuery commandDomainDataQueryWithCsv =
-//                Flightdm.CommandDomainDataQuery.newBuilder()
-//                        .setContentType(Flightdm.ContentType.CSV)
-//                        .setPartitionSpec("")
-//                        .build();
-//
-//        Flightinner.CommandDataMeshQuery query =
-//                Flightinner.CommandDataMeshQuery.newBuilder()
-//                        .setDatasource(domainDataSource)
-//                        .setDomaindata(domainDataWithTable)
-//                        .setQuery(commandDomainDataQueryWithCsv)
-//                        .build();
-//
-//        this.testDoGet(query);
-//    }
+    @Test
+    @Order(2)
+    public void testDoGetWithTable() {
+
+        final Flightdm.CommandDomainDataQuery commandDomainDataQueryWithCsv =
+                Flightdm.CommandDomainDataQuery.newBuilder()
+                        .setContentType(Flightdm.ContentType.CSV)
+                        .setPartitionSpec("")
+                        .build();
+
+        Flightinner.CommandDataMeshQuery query =
+                Flightinner.CommandDataMeshQuery.newBuilder()
+                        .setDatasource(domainDataSource)
+                        .setDomaindata(domainDataWithTable)
+                        .setQuery(commandDomainDataQueryWithCsv)
+                        .build();
+
+        this.testDoGet(query);
+    }
 
     private void testDoGet(final Flightinner.CommandDataMeshQuery query) {
         testDoGetWithTable(query, batchSize * batchCount);
@@ -173,6 +173,7 @@ public class HiveIntegrationTest extends BaseArrowFlightServerTest {
                                 assertNotNull(root);
                                 assertNotNull(root.getSchema());
                                 total += root.getRowCount();
+                                log.info("toatal", total);
                             }
                         }
                         assertEquals(recordCount, total);

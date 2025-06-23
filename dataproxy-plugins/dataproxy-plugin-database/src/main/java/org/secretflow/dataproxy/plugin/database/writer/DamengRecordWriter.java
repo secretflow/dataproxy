@@ -26,7 +26,7 @@ public class DamengRecordWriter extends AbstractDatabaseRecordWriter{
     protected boolean isExistsTable(Connection connection, String tableName) {
         try {
             Statement stmt = connection.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM dba_tables WHERE table_name = '" + tableName.toUpperCase() + "'");
+            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM dba_tables WHERE table_name = " + tableName);
             rs.next();
             boolean exists = rs.getInt(1) > 0;
             rs.close();

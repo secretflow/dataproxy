@@ -38,7 +38,7 @@ public class DatabaseDoGetTaskContext implements AutoCloseable{
     private final VectorSchemaRoot root;
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(1);
-    private final org.secretflow.dataproxy.plugin.database.reader.DatabaseRecordReader reader;
+    private final DatabaseRecordReader reader;
 
     private Future<?> readFuture;
 
