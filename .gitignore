@@ -30,6 +30,7 @@ target/
 !**/src/test/**/build/
 dataproxy-api/**/kusciaapi/
 dataproxy-api/**/common/
+dataproxy-integration-tests/src/test/resources/*.conf
 
 ### VS Code ###
 .vscode/

@@ -312,6 +312,7 @@ class UploadInfo {
   }
   int attributes_size() { return attributes_.size(); }
   const std::vector<DataColumn>& columns() const { return columns_; }
+  const DataColumn& columns(int index) const { return columns_[index]; }
   void set_columns(std::vector<DataColumn> columns) {
     columns_ = std::move(columns);
   }

@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!-- https://www.baeldung.com/logback -->
 <configuration>
     <appender name="FILE_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>log/dataproxy.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>log/dataproxy.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>log/dataproxy.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxHistory>30</maxHistory>
             <maxFileSize>100MB</maxFileSize>
             <totalSizeCap>512MB</totalSizeCap>

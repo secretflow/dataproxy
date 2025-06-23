@@ -1,4 +1,4 @@
-# Copyright 2024 Ant Group Co., Ltd.
+# Copyright 2025 Ant Group Co., Ltd.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,4 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DATAPROXY_SDK_VERSION = "0.5.0b0"
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "data_proxy_proto",
+    srcs = ["data_proxy_pb.proto"],
+    deps = [
+        "@kuscia//proto/api/v1alpha1:common_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "data_proxy_cc_proto",
+    deps = [":data_proxy_proto"],
+)

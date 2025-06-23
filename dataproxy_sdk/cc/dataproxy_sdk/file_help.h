@@ -63,7 +63,7 @@ class FileHelpRead {
   struct Options {
     std::unordered_map<std::string, std::shared_ptr<arrow::DataType>>
         column_types;
-
+    std::vector<std::string> include_columns;
     static Options Defaults();
   };
 

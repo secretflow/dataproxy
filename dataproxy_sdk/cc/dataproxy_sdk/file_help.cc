@@ -212,10 +212,8 @@ class CSVFileRead : public FileHelpRead {
 
     arrow::csv::ConvertOptions convert_options =
         arrow::csv::ConvertOptions::Defaults();
-    for (auto& pair : options.column_types) {
-      convert_options.column_types.emplace(pair.first, pair.second);
-      convert_options.include_columns.push_back(pair.first);
-    }
+    convert_options.column_types = options.column_types;
+    convert_options.include_columns = options.include_columns;
     ASSIGN_ARROW_OR_THROW(
         file_reader_,
         arrow::csv::StreamingReader::Make(
@@ -252,9 +250,7 @@ class ORCFileRead : public FileHelpRead {
  protected:
   void DoOpen(const std::string& file_name,
               const FileHelpRead::Options& options) {
-    for (auto& pair : options.column_types) {
-      include_names_.push_back(pair.first);
-    }
+    include_names_ = options.include_columns;
     ASSIGN_ARROW_OR_THROW(file_stream_,
                           arrow::io::ReadableFile::Open(file_name));
     ASSIGN_ARROW_OR_THROW(orc_reader_,
