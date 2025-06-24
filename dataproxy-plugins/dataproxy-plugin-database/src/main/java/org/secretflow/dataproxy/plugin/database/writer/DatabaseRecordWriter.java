@@ -297,5 +297,4 @@ public class DatabaseRecordWriter implements Writer {
         createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
     }
 
-
 }
