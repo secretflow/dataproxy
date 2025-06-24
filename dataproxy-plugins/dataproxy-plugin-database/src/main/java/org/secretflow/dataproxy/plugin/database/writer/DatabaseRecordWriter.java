@@ -21,6 +21,7 @@ import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import org.apache.hive.hplsql.Conn;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.core.writer.Writer;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
@@ -118,7 +119,6 @@ public class DatabaseRecordWriter implements Writer {
                 log.warn("Not implemented type: {}, will use default function", arrowTypeID);
                 return fieldVector.getObject(index);
             }
-
         }
         return null;
     }
@@ -156,7 +156,6 @@ public class DatabaseRecordWriter implements Writer {
             log.error("database connection close error");
             throw new RuntimeException(e);
         }
-
     }
 
 
@@ -180,6 +179,38 @@ public class DatabaseRecordWriter implements Writer {
             throw new RuntimeException(e);
         }
 
+    }
+
+    private void dropTable(Connection connection, String tableName) throws SQLException {
+        if (tableName == null || tableName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Table name cannot be null or empty");
+        }
+
+        String sql = "DROP TABLE IF EXISTS " + tableName;
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.execute();
+            log.info("Table {} dropped successfully.", tableName);
+        } catch (SQLException e) {
+            log.error("Failed to drop table {}: {}", tableName, e.getMessage());
+            throw e;
+        }
+    }
+
+    private void deleteAllRowOfTable(Connection connection, String tableName) throws SQLException {
+        if (tableName == null || tableName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Table name cannot be null or empty");
+        }
+
+        String sql = "DELETE FROM " + tableName;
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            int rowsDeleted = preparedStatement.executeUpdate();
+            log.info("Number of rows deleted: {}", rowsDeleted);
+        } catch (SQLException e) {
+            log.info("Failed to delete data from table {} : {}", tableName, e.getMessage());
+            throw e;
+        }
     }
 
     public void insertData(Connection conn, Schema arrowSchema, String tableName, Map<String, Object> data) {
@@ -222,8 +253,6 @@ public class DatabaseRecordWriter implements Writer {
             log.error("insert data error: sql:\"{}\" error:\"{}\"", sql, e.getMessage());
             throw new RuntimeException(e);
         }
-
-
     }
 
     private static void setStatementParameter(PreparedStatement stmt, int index, Object value) throws SQLException {
@@ -253,6 +282,17 @@ public class DatabaseRecordWriter implements Writer {
             createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
         } else {
             log.info("database table is exists, table name: {}", tableName);
+            log.info("trying dropping table {}", tableName);
+            try {
+                dropTable(connection, tableName);
+            } catch (SQLException e) {
+                try {
+                    deleteAllRowOfTable(connection, tableName);
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+
         }
     }
 
