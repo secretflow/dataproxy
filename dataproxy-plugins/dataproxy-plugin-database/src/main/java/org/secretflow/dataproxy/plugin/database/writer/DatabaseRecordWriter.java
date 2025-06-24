@@ -277,10 +277,7 @@ public class DatabaseRecordWriter implements Writer {
 
     // create table when the table not exist
     private void preProcessing(Connection connection, String tableName){
-        if(!checkTableExists.apply(connection, tableName)) {
-            log.info("database table is not exists, create table successful, table name: {}", tableName);
-            createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
-        } else {
+        if(checkTableExists.apply(connection, tableName)) {
             log.info("database table is exists, table name: {}", tableName);
             log.info("trying dropping table {}", tableName);
             try {
@@ -293,7 +290,11 @@ public class DatabaseRecordWriter implements Writer {
                 }
             }
 
+        } else {
+            log.info("table {} no exists", tableName);
         }
+
+        createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
     }
 
 
