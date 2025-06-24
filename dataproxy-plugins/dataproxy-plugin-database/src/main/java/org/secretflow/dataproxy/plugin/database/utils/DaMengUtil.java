@@ -18,12 +18,15 @@ package org.secretflow.dataproxy.plugin.database.utils;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
@@ -99,5 +102,40 @@ public class DaMengUtil {
             default:
                 throw new IllegalArgumentException("Unsupported JDBC type: " + jdbcType);
         }
+    }
+
+    public static String wrapTableName(String tableName) {
+        return "\"" + tableName + "\"";
+    }
+
+    public static Boolean checkTableExists(Connection connection, String tableName) {
+        String sql = "SELECT COUNT(*) FROM dba_tables WHERE table_name = '" + tableName + "'";
+        try {
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+            rs.next();
+            boolean exists = rs.getInt(1) > 0;
+            rs.close();
+            stmt.close();
+            return exists;
+        } catch (Exception e) {
+            log.error("check whether table has existed sql: {} error: " + e.getMessage(), sql);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String arrowField2JdbcType(Field field) {
+        return switch (field.getFieldType().getType().getTypeID()) {
+            case Int -> "INT";
+            case FloatingPoint -> "FLOAT";
+            case Bool -> "BIT";
+            case Date -> "DATE";
+            case Time -> "TIME";
+            case Timestamp -> "TIMESTAMP";
+            case Decimal -> "DECIMAL(10, 2)";
+            case Binary -> "BLOB";
+            case FixedSizeBinary -> "BINARY";
+            default -> "VARCHAR(255)";
+        };
     }
 }

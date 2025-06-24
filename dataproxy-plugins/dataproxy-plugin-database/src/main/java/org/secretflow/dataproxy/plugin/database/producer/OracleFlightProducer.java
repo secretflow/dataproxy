@@ -20,8 +20,7 @@ import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
 import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
 import org.secretflow.dataproxy.plugin.database.utils.OracleUtil;
-import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
-import org.secretflow.dataproxy.plugin.database.writer.OracleRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
 
 public class OracleFlightProducer extends AbstractDatabaseFlightProducer {
 
@@ -36,7 +35,11 @@ public class OracleFlightProducer extends AbstractDatabaseFlightProducer {
     }
 
     @Override
-    protected AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
-        return new OracleRecordWriter(config, OracleUtil::initOracle);
+    protected DatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
+        return new DatabaseRecordWriter(config,
+                OracleUtil::initOracle,
+                OracleUtil::wrapTableName,
+                OracleUtil::arrowField2JdbcType,
+                OracleUtil::checkTableExists);
     }
 }

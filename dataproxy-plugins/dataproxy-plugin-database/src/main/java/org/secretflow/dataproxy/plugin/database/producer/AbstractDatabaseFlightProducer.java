@@ -41,7 +41,7 @@ import org.secretflow.dataproxy.core.param.ParamWrapper;
 import org.secretflow.dataproxy.core.service.TicketService;
 import org.secretflow.dataproxy.core.service.impl.CacheTicketService;
 import org.secretflow.dataproxy.core.spi.producer.DataProxyFlightProducer;
-import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
 import org.secretflow.v1alpha1.kusciaapi.Flightdm;
 import org.secretflow.v1alpha1.kusciaapi.Flightinner;
 
@@ -108,7 +108,7 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
     }
 
     protected abstract DatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config);
-    protected abstract AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config);
+    protected abstract DatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config);
     @Override
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
         ParamWrapper paramWrapper = ticketService.getParamWrapper(ticket.getBytes());
@@ -177,7 +177,7 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
                 Flightdm.TicketDomainDataQuery unpack = any.unpack(Flightdm.TicketDomainDataQuery.class);
                 DatabaseWriteConfig writeConfig = ticketService.getParamWrapper(unpack.getDomaindataHandle().getBytes()).unwrap(DatabaseWriteConfig.class);
 
-                AbstractDatabaseRecordWriter writer;
+                DatabaseRecordWriter writer;
                 int count = 0;
                 writer = initRecordWriter(writeConfig);
 

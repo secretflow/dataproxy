@@ -20,8 +20,7 @@ import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
 import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
 import org.secretflow.dataproxy.plugin.database.utils.HiveUtil;
-import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
-import org.secretflow.dataproxy.plugin.database.writer.HiveRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
 
 public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
 
@@ -36,7 +35,11 @@ public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
     }
 
     @Override
-    protected AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
-        return new HiveRecordWriter(config, HiveUtil::initHive);
+    protected DatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
+        return new DatabaseRecordWriter(config,
+                HiveUtil::initHive,
+                HiveUtil::wrapTableName,
+                HiveUtil::arrowField2JdbcType,
+                HiveUtil::checkTableExists);
     }
 }

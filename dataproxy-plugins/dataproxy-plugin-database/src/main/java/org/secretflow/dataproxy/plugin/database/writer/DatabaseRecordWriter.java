@@ -33,24 +33,29 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 @Slf4j
-public abstract class AbstractDatabaseRecordWriter implements Writer {
+public class DatabaseRecordWriter implements Writer {
     private final DatabaseCommandConfig<?> commandConfig;
 
     private final DatabaseConnectConfig dbConnectConfig;
     private final DatabaseTableConfig dbTableConfig;
     private final Function<DatabaseConnectConfig, Connection> initFunc;
+    private final Function<String, String> wrapTableName;
+    private final Function<Field, String> arrowField2JdbcType;
+    private final BiFunction<Connection, String, Boolean> checkTableExists;
     private Connection connection;
 
-    protected abstract String wrapTableName(String tableName);
-
-    public AbstractDatabaseRecordWriter(DatabaseWriteConfig commandConfig, Function<DatabaseConnectConfig, Connection> initFunc) {
+    public DatabaseRecordWriter(DatabaseWriteConfig commandConfig, Function<DatabaseConnectConfig, Connection> initFunc, Function<String, String> wrapTableName, Function<Field, String> arrowField2JdbcType, BiFunction<Connection, String, Boolean> checkTableExists) {
         this.commandConfig = commandConfig;
         this.dbConnectConfig = commandConfig.getDbConnectConfig();
         this.dbTableConfig = commandConfig.getCommandConfig();
         this.initFunc = initFunc;
+        this.wrapTableName = wrapTableName;
+        this.arrowField2JdbcType = arrowField2JdbcType;
+        this.checkTableExists = checkTableExists;
         this.prepare();
     }
 
@@ -154,16 +159,15 @@ public abstract class AbstractDatabaseRecordWriter implements Writer {
 
     }
 
-    abstract protected String getJdbcType(Field field);
 
     private void createTableFromSchema(Connection connection,Schema schema, String tableName){
 
-        StringBuilder createTableSql = new StringBuilder("CREATE TABLE "+ this.wrapTableName(tableName) + " (");
+        StringBuilder createTableSql = new StringBuilder("CREATE TABLE "+ wrapTableName.apply(tableName) + " (");
         for (Field field : schema.getFields()) {
             createTableSql.append("\n   ");
             createTableSql.append(field.getName());
             createTableSql.append(" ");
-            createTableSql.append(getJdbcType(field));
+            createTableSql.append(arrowField2JdbcType.apply(field));
             createTableSql.append(",");
         }
         createTableSql.setCharAt(createTableSql.length() - 1, ')');
@@ -179,7 +183,7 @@ public abstract class AbstractDatabaseRecordWriter implements Writer {
     }
 
     public void insertData(Connection conn, Schema arrowSchema, String tableName, Map<String, Object> data) {
-        StringBuilder sql = new StringBuilder("INSERT INTO "+ this.wrapTableName(tableName) +" (");
+        StringBuilder sql = new StringBuilder("INSERT INTO "+ wrapTableName.apply(tableName) +" (");
         StringBuilder values = new StringBuilder("VALUES (");
 
         List<Field> fields = arrowSchema.getFields();
@@ -244,7 +248,7 @@ public abstract class AbstractDatabaseRecordWriter implements Writer {
 
     // create table when the table not exist
     private void preProcessing(Connection connection, String tableName){
-        if(!isExistsTable(connection, tableName)) {
+        if(!checkTableExists.apply(connection, tableName)) {
             log.info("database table is not exists, create table successful, table name: {}", tableName);
             createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
         } else {
@@ -252,6 +256,5 @@ public abstract class AbstractDatabaseRecordWriter implements Writer {
         }
     }
 
-    abstract protected boolean isExistsTable(Connection connection, String tableName);
 
 }

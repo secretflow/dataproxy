@@ -16,14 +16,14 @@
 
 package org.secretflow.dataproxy.plugin.database.utils;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
+import java.sql.*;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
@@ -95,6 +95,39 @@ public class HiveUtil {
                 Types.MinorType.TIMESTAMPMILLI.getType();
             default:
                 throw new IllegalArgumentException("Unsupported JDBC type: " + jdbcType);
+        }
+    }
+
+    public static String wrapTableName(String tableName) {
+        return tableName;
+    }
+
+    public static String arrowField2JdbcType(Field field) {
+        return switch (field.getFieldType().getType().getTypeID()) {
+            case Int -> "INT";
+            case FloatingPoint -> "FLOAT";
+            case Bool -> "BOOLEAN";
+            case Date -> "DATE";
+            case Time -> "TIME";
+            case Timestamp -> "TIMESTAMP";
+            case Decimal -> "DECIMAL(10, 2)";
+            case Binary -> "BLOB";
+            case FixedSizeBinary -> "BINARY";
+            default -> "VARCHAR(255)";
+        };
+    }
+
+    public static boolean checkTableExists(Connection connection, String tableName) {
+        try {
+            Statement stmt = connection.createStatement();
+            ResultSet rs = stmt.executeQuery("SHOW TABLES '" + tableName + "'");
+            boolean exists = rs.next();
+            rs.close();
+            stmt.close();
+            return exists;
+        } catch (SQLException e) {
+            log.error("check whether table has existed error: " + e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 }

@@ -20,8 +20,7 @@ import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
 import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
 import org.secretflow.dataproxy.plugin.database.utils.DaMengUtil;
-import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
-import org.secretflow.dataproxy.plugin.database.writer.DamengRecordWriter;
+import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
 
 public class DaMengFlightProducer extends AbstractDatabaseFlightProducer {
 
@@ -36,7 +35,11 @@ public class DaMengFlightProducer extends AbstractDatabaseFlightProducer {
     }
 
     @Override
-    protected AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
-        return new DamengRecordWriter(config, DaMengUtil::initDaMeng);
+    protected DatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
+        return new DatabaseRecordWriter(config,
+                DaMengUtil::initDaMeng,
+                DaMengUtil::wrapTableName,
+                DaMengUtil::arrowField2JdbcType,
+                DaMengUtil::checkTableExists);
     }
 }
