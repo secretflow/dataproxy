@@ -27,7 +27,6 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowReader;
 import org.apache.arrow.vector.ipc.message.IpcOption;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
-import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
 import org.secretflow.dataproxy.plugin.database.config.TaskConfig;
 import org.secretflow.dataproxy.plugin.database.converter.DatabaseParamConverter;
@@ -42,24 +41,14 @@ import org.secretflow.dataproxy.core.param.ParamWrapper;
 import org.secretflow.dataproxy.core.service.TicketService;
 import org.secretflow.dataproxy.core.service.impl.CacheTicketService;
 import org.secretflow.dataproxy.core.spi.producer.DataProxyFlightProducer;
-import org.secretflow.dataproxy.plugin.database.utils.DaMengUtil;
-import org.secretflow.dataproxy.plugin.database.utils.HiveUtil;
-import org.secretflow.dataproxy.plugin.database.utils.OracleUtil;
 import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
-import org.secretflow.dataproxy.plugin.database.writer.DamengRecordWriter;
-import org.secretflow.dataproxy.plugin.database.writer.HiveRecordWriter;
-import org.secretflow.dataproxy.plugin.database.writer.OracleRecordWriter;
 import org.secretflow.v1alpha1.kusciaapi.Flightdm;
 import org.secretflow.v1alpha1.kusciaapi.Flightinner;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 
 @Slf4j
 public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer implements DataProxyFlightProducer {
@@ -118,13 +107,13 @@ public abstract class AbstractDatabaseFlightProducer extends NoOpFlightProducer 
         }
     }
 
-    protected abstract AbstractDatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config);
+    protected abstract DatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config);
     protected abstract AbstractDatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config);
     @Override
     public void getStream(CallContext context, Ticket ticket, ServerStreamListener listener) {
         ParamWrapper paramWrapper = ticketService.getParamWrapper(ticket.getBytes());
         ArrowReader dbReader = null;
-        AbstractDatabaseDoGetContext dbDoGetContext = null;
+        DatabaseDoGetContext dbDoGetContext = null;
         try {
             Object param = paramWrapper.param();
 

@@ -18,8 +18,7 @@ package org.secretflow.dataproxy.plugin.database.producer;
 
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
-import org.secretflow.dataproxy.plugin.database.reader.AbstractDatabaseDoGetContext;
-import org.secretflow.dataproxy.plugin.database.reader.DamengDoGetContext;
+import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
 import org.secretflow.dataproxy.plugin.database.utils.DaMengUtil;
 import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
 import org.secretflow.dataproxy.plugin.database.writer.DamengRecordWriter;
@@ -32,8 +31,8 @@ public class DaMengFlightProducer extends AbstractDatabaseFlightProducer {
     }
 
     @Override
-    protected AbstractDatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config) {
-        return new DamengDoGetContext(config, DaMengUtil::initDaMeng);
+    protected DatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config) {
+        return new DatabaseDoGetContext(config, DaMengUtil::initDaMeng, DaMengUtil::buildQuerySql, DaMengUtil::jdbcType2ArrowType);
     }
 
     @Override

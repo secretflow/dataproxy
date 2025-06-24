@@ -21,7 +21,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.secretflow.dataproxy.plugin.database.reader.AbstractDatabaseDoGetContext;
+import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
 
 @Slf4j
 @Getter
@@ -31,7 +31,7 @@ public class TaskConfig {
     private final long startIndex;
 
     @JsonIgnore
-    private final AbstractDatabaseDoGetContext context;
+    private final DatabaseDoGetContext context;
 
     @Setter
     private long currentIndex;
@@ -40,7 +40,7 @@ public class TaskConfig {
     @Setter
     private Throwable error;
 
-    public TaskConfig(AbstractDatabaseDoGetContext context, long startIndex) {
+    public TaskConfig(DatabaseDoGetContext context, long startIndex) {
         this.context = context;
         this.startIndex = startIndex;
         this.currentIndex = startIndex;

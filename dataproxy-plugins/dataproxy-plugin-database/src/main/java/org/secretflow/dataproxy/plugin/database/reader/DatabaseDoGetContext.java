@@ -18,7 +18,6 @@ package org.secretflow.dataproxy.plugin.database.reader;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -42,10 +41,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
-import java.util.regex.Pattern;
+
 
 @Slf4j
-public abstract class AbstractDatabaseDoGetContext {
+public class DatabaseDoGetContext {
 
     private final DatabaseCommandConfig<?> dbCommandConfig;
 
@@ -66,12 +65,23 @@ public abstract class AbstractDatabaseDoGetContext {
     private final Map<byte[], ParamWrapper> ticketWrapperMap = new ConcurrentHashMap<>();
     private final ReadWriteLock tickerWrapperMapRwLock = new ReentrantReadWriteLock();
 
-    private final Function<DatabaseConnectConfig, Connection> initDatabase;
+    private final Function<DatabaseConnectConfig, Connection> initDatabaseFunc;
+
+    @FunctionalInterface
+    public interface BuildQuerySqlFunc<T, U, V, String> {
+        String apply(T t, U u, V v);
+    }
+    private final BuildQuerySqlFunc<String, List<String>, String, String>  buildQuerySqlFunc;
+
+    private final Function<String, ArrowType> jdbcType2ArrowType;
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
-    public AbstractDatabaseDoGetContext(DatabaseCommandConfig<?> config, Function<DatabaseConnectConfig, Connection> initDatabase) {
+
+    public DatabaseDoGetContext(DatabaseCommandConfig<?> config, Function<DatabaseConnectConfig, Connection> initDatabaseFunc, BuildQuerySqlFunc<String, List<String>, String, String> buildQuerySqlFunc, Function<String, ArrowType> jdbcType2ArrowType) {
         this.dbCommandConfig = config;
-        this.initDatabase = initDatabase;
+        this.initDatabaseFunc = initDatabaseFunc;
+        this.buildQuerySqlFunc = buildQuerySqlFunc;
+        this.jdbcType2ArrowType = jdbcType2ArrowType;
         prepare();
     }
 
@@ -84,13 +94,13 @@ public abstract class AbstractDatabaseDoGetContext {
 
         String querySql;
 
-        conn = this.initDatabase.apply(dbConnectConfig);
+        conn = this.initDatabaseFunc.apply(dbConnectConfig);
         if (dbCommandConfig instanceof ScqlCommandJobConfig scqlReadJobConfig) {
             querySql = scqlReadJobConfig.getCommandConfig();
         } else if (dbCommandConfig instanceof DatabaseTableQueryConfig dbTableQueryConfig) {
             DatabaseTableConfig tableConfig = dbTableQueryConfig.getCommandConfig();
             this.tableName = tableConfig.tableName();
-            querySql = this.buildSql(this.tableName, tableConfig.columns().stream().map(Common.DataColumn::getName).toList(), tableConfig.partition());
+            querySql = this.buildQuerySqlFunc.apply(this.tableName, tableConfig.columns().stream().map(Common.DataColumn::getName).toList(), tableConfig.partition());
             this.schema = dbCommandConfig.getResultSchema();
         } else {
             throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Unsupported read parameter type: " + dbCommandConfig.getClass());
@@ -135,31 +145,6 @@ public abstract class AbstractDatabaseDoGetContext {
 
     }
 
-    private static ArrowType getArrowType(String jdbcType) {
-        switch (jdbcType.toLowerCase()) {
-            case "int":
-            case "integer":
-                return Types.MinorType.INT.getType();
-            case "bigint":
-                return Types.MinorType.BIGINT.getType();
-            case "float":
-                return Types.MinorType.FLOAT4.getType();
-            case "double":
-                return Types.MinorType.FLOAT8.getType();
-            case "varchar":
-            case "string":
-                Types.MinorType.VARCHAR.getType();
-            case "boolean":
-                Types.MinorType.BIT.getType();
-            case "date":
-                Types.MinorType.DATEDAY.getType();
-            case "timestamp":
-                Types.MinorType.TIMESTAMPMILLI.getType();
-            default:
-                throw new IllegalArgumentException("Unsupported JDBC type: " + jdbcType);
-        }
-    }
-
     private void initArrowSchemaFromColumns(DatabaseMetaData metaData, String tableName) throws SQLException {
         ResultSet columns = metaData.getColumns(null, null, tableName, null);
         List<Field> fields = new ArrayList<>();
@@ -167,7 +152,7 @@ public abstract class AbstractDatabaseDoGetContext {
             String columnName = columns.getString("COLUMN_NAME");
             String columnType = columns.getString("TYPE_NAME");
 
-            ArrowType arrowType = getArrowType(columnType);
+            ArrowType arrowType = this.jdbcType2ArrowType.apply(columnType);
             Field field = new Field(columnName, FieldType.nullable(arrowType), null);
             fields.add(field);
         }
@@ -175,7 +160,6 @@ public abstract class AbstractDatabaseDoGetContext {
         schema = new Schema(fields);
     }
 
-    protected abstract String buildSql(String tableName, List<String> fields, String whereClause);
 
     private void loadLazyConfig(Throwable throwable) {
         tickerWrapperMapRwLock.writeLock().lock();

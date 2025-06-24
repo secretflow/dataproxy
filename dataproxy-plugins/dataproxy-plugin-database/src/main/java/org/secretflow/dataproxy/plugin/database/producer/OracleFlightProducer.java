@@ -18,8 +18,7 @@ package org.secretflow.dataproxy.plugin.database.producer;
 
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
-import org.secretflow.dataproxy.plugin.database.reader.AbstractDatabaseDoGetContext;
-import org.secretflow.dataproxy.plugin.database.reader.OracleDoGetContext;
+import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
 import org.secretflow.dataproxy.plugin.database.utils.OracleUtil;
 import org.secretflow.dataproxy.plugin.database.writer.AbstractDatabaseRecordWriter;
 import org.secretflow.dataproxy.plugin.database.writer.OracleRecordWriter;
@@ -32,8 +31,8 @@ public class OracleFlightProducer extends AbstractDatabaseFlightProducer {
     }
 
     @Override
-    protected AbstractDatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config) {
-        return new OracleDoGetContext(config, OracleUtil::initOracle);
+    protected DatabaseDoGetContext initDoGetContext(DatabaseCommandConfig<?> config) {
+        return new DatabaseDoGetContext(config, OracleUtil::initOracle, OracleUtil::buildQuerySql, OracleUtil::jdbcType2ArrowType);
     }
 
     @Override
