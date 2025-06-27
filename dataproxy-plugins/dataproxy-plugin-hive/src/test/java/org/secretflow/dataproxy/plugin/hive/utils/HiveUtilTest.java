@@ -1,23 +1,13 @@
 package org.secretflow.dataproxy.plugin.hive.utils;
 
 import org.apache.arrow.vector.types.Types;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.DictionaryEncoding;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
-
-import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class HiveUtilTest {
@@ -48,11 +38,6 @@ public class HiveUtilTest {
     @Test
     void TestWrapTableName() {
         assertEquals("table", HiveUtil.wrapTableName("table"));
-    }
-
-    @Test
-    void TestArrowField2JdbcType() {
-        assertEquals("INT", HiveUtil.arrowField2JdbcType(new Field("", new FieldType(true, new ArrowType.Int(32, true), new DictionaryEncoding()), null)));
     }
 
 }

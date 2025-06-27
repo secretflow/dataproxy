@@ -119,8 +119,7 @@ public class HiveUtil {
                         throw new IllegalArgumentException("Unexpected INT value BitWidth: " + ((ArrowType.Int)(field.getFieldType().getType())).getBitWidth());
             };
             case FloatingPoint -> switch (((ArrowType.FloatingPoint)(field.getFieldType().getType())).getPrecision()){
-                case HALF -> "FLOAT";
-                case SINGLE -> "FLOAT";
+                case HALF, SINGLE -> "FLOAT";
                 case DOUBLE -> "DOUBLE";
             };
             case Bool -> "BOOLEAN";
@@ -147,7 +146,7 @@ public class HiveUtil {
             stmt.close();
             return exists;
         } catch (SQLException e) {
-            log.error("check whether table has existed error: " + e.getMessage());
+            log.error("check whether table has existed error: {}", e.getMessage());
             throw new RuntimeException(e);
         }
     }
