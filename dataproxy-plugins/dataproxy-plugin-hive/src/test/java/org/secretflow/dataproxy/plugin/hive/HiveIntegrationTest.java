@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.secretflow.dataproxy.integration.tests;
+
+package org.secretflow.dataproxy.plugin.hive;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
@@ -27,7 +28,7 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
 import org.secretflow.dataproxy.common.utils.ArrowUtil;
 import org.secretflow.dataproxy.core.config.FlightServerContext;
-import org.secretflow.dataproxy.integration.tests.utils.HiveTestUtil;
+import org.secretflow.dataproxy.plugin.hive.utils.HiveTestUtil;
 import org.secretflow.dataproxy.server.DataProxyFlightServer;
 import org.secretflow.v1alpha1.common.Common;
 import org.secretflow.v1alpha1.kusciaapi.Domaindata;

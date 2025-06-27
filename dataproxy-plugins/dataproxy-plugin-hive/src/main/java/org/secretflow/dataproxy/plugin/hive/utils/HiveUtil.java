@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-package org.secretflow.dataproxy.plugin.database.utils;
+package org.secretflow.dataproxy.plugin.hive.utils;
 
-import java.sql.*;
-import java.util.List;
-import java.util.regex.Pattern;
-
+import com.aliyun.odps.PartitionSpec;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -27,6 +24,10 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
+
+import java.sql.*;
+import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 public class HiveUtil {
@@ -67,35 +68,39 @@ public class HiveUtil {
         if (!columnOrValuePattern.matcher(tableName).matches()) {
             throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid tableName:" + tableName);
         }
+        if (!whereClause.isEmpty()) {
+            String[] groups = whereClause.split("[,/]");
+            if (groups.length > 1) {
+                final PartitionSpec partitionSpec = new PartitionSpec(whereClause);
 
-        log.info("whereClause: {}", whereClause);
+                for (String key : partitionSpec.keys()) {
+                    if (!columnOrValuePattern.matcher(key).matches()) {
+                        throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid partition key:" + key);
+                    }
+                    if (!columnOrValuePattern.matcher(partitionSpec.get(key)).matches()) {
+                        throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid partition value:" + partitionSpec.get(key));
+                    }
+                }
 
-        return "select " + String.join(",", fields) + " from " + (tableName);
+                List<String> list = partitionSpec.keys().stream().map(k -> k + "='" + partitionSpec.get(k) + "'").toList();
+                whereClause = String.join(" and ", list);
+            }
+        }
+        return "select " + String.join(",", fields) + " from " + tableName + (whereClause.isEmpty() ? "" : " where " + whereClause);
     }
 
     public static ArrowType jdbcType2ArrowType(String jdbcType) {
-        switch (jdbcType.toLowerCase()) {
-            case "int":
-            case "integer":
-                return Types.MinorType.INT.getType();
-            case "bigint":
-                return Types.MinorType.BIGINT.getType();
-            case "float":
-                return Types.MinorType.FLOAT4.getType();
-            case "double":
-                return Types.MinorType.FLOAT8.getType();
-            case "varchar":
-            case "string":
-                Types.MinorType.VARCHAR.getType();
-            case "boolean":
-                Types.MinorType.BIT.getType();
-            case "date":
-                Types.MinorType.DATEDAY.getType();
-            case "timestamp":
-                Types.MinorType.TIMESTAMPMILLI.getType();
-            default:
-                throw new IllegalArgumentException("Unsupported JDBC type: " + jdbcType);
-        }
+        return switch (jdbcType.toLowerCase()) {
+            case "int", "integer" -> Types.MinorType.INT.getType();
+            case "bigint" -> Types.MinorType.BIGINT.getType();
+            case "float" -> Types.MinorType.FLOAT4.getType();
+            case "double" -> Types.MinorType.FLOAT8.getType();
+            case "varchar", "string" -> Types.MinorType.VARCHAR.getType();
+            case "boolean" -> Types.MinorType.BIT.getType();
+            case "date" -> Types.MinorType.DATEDAY.getType();
+            case "timestamp" -> Types.MinorType.TIMESTAMPMILLI.getType();
+            default -> throw new IllegalArgumentException("Unsupported JDBC type: " + jdbcType);
+        };
     }
 
     public static String wrapTableName(String tableName) {
@@ -104,8 +109,20 @@ public class HiveUtil {
 
     public static String arrowField2JdbcType(Field field) {
         return switch (field.getFieldType().getType().getTypeID()) {
-            case Int -> "INT";
-            case FloatingPoint -> "FLOAT";
+            case Utf8 -> "VARCHAR(255)";
+            case Int -> switch (((ArrowType.Int)(field.getFieldType().getType())).getBitWidth()) {
+                case 8 -> "TINYINT";
+                case 16 -> "SMALLINT";
+                case 32 -> "INT";
+                case 64 -> "BIGINT";
+                default ->
+                        throw new IllegalArgumentException("Unexpected INT value BitWidth: " + ((ArrowType.Int)(field.getFieldType().getType())).getBitWidth());
+            };
+            case FloatingPoint -> switch (((ArrowType.FloatingPoint)(field.getFieldType().getType())).getPrecision()){
+                case HALF -> "FLOAT";
+                case SINGLE -> "FLOAT";
+                case DOUBLE -> "DOUBLE";
+            };
             case Bool -> "BOOLEAN";
             case Date -> "DATE";
             case Time -> "TIME";
@@ -113,14 +130,18 @@ public class HiveUtil {
             case Decimal -> "DECIMAL(10, 2)";
             case Binary -> "BLOB";
             case FixedSizeBinary -> "BINARY";
-            default -> "VARCHAR(255)";
+            default -> {
+                log.warn("Not Implemented type: {}", field.getFieldType().getType().getTypeID());
+                throw new IllegalArgumentException("Unexpected arrow field type: "+ field.getFieldType().getType().getTypeID());
+            }
         };
     }
 
     public static boolean checkTableExists(Connection connection, String tableName) {
         try {
-            Statement stmt = connection.createStatement();
-            ResultSet rs = stmt.executeQuery("SHOW TABLES '" + tableName + "'");
+            PreparedStatement stmt = connection.prepareStatement("SHOW TABLES '?'");
+            stmt.setString(1, tableName);
+            ResultSet rs = stmt.executeQuery();
             boolean exists = rs.next();
             rs.close();
             stmt.close();

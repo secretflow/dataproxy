@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.secretflow.dataproxy.integration.tests.utils;
+package org.secretflow.dataproxy.plugin.hive.utils;
 
 import java.io.InputStream;
 import java.util.Properties;

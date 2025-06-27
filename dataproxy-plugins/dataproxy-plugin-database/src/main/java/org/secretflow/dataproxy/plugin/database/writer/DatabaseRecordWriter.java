@@ -21,7 +21,6 @@ import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hive.hplsql.Conn;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.core.writer.Writer;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;

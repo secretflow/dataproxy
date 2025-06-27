@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package org.secretflow.dataproxy.plugin.database.producer;
+package org.secretflow.dataproxy.plugin.hive.producer;
 
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
+import org.secretflow.dataproxy.plugin.database.producer.AbstractDatabaseFlightProducer;
 import org.secretflow.dataproxy.plugin.database.reader.DatabaseDoGetContext;
-import org.secretflow.dataproxy.plugin.database.utils.HiveUtil;
 import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
+import org.secretflow.dataproxy.plugin.hive.utils.HiveUtil;
 
 public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
 
@@ -43,3 +44,4 @@ public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
                 HiveUtil::checkTableExists);
     }
 }
+

@@ -1,20 +1,4 @@
-/*
- * Copyright 2025 Ant Group Co., Ltd.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-package org.secretflow.dataproxy.plugin.database.producer;
+package org.secretflow.dataproxy.plugin.hive.producer;
 
 import com.google.protobuf.Any;
 import org.apache.arrow.flight.FlightDescriptor;
@@ -49,7 +33,7 @@ public class HiveFlightProducerTest {
     @Mock
     private FlightDescriptor descriptor;
 
-    private final Domaindatasource.DatabaseDataSourceInfo hiveDatasourceInfo =
+    private final Domaindatasource.DatabaseDataSourceInfo hiveDataSourceInfo =
             Domaindatasource.DatabaseDataSourceInfo
                     .newBuilder()
                     .setEndpoint("endpoint")
@@ -57,9 +41,8 @@ public class HiveFlightProducerTest {
                     .setUser("user")
                     .setPassword("password")
                     .build();
-
     private final Domaindatasource.DataSourceInfo dataSourceInfo =
-            Domaindatasource.DataSourceInfo.newBuilder().setDatabase(hiveDatasourceInfo).build();
+            Domaindatasource.DataSourceInfo.newBuilder().setDatabase(hiveDataSourceInfo).build();
 
     private final Domaindatasource.DomainDataSource domainDataSource =
             Domaindatasource.DomainDataSource.newBuilder()
@@ -77,11 +60,13 @@ public class HiveFlightProducerTest {
                     .setDomaindataId("domainDataId")
                     .setType("table")
                     .build();
+
     private final Flightdm.CommandDomainDataQuery commandDomainDataQueryWithCSV =
             Flightdm.CommandDomainDataQuery.newBuilder()
                     .setContentType(Flightdm.ContentType.CSV)
                     .setPartitionSpec("partition_spec")
                     .build();
+
     @Test
     public void testGetProducerName() {
         String producerName = hiveFlightProducer.getProducerName();
@@ -118,4 +103,3 @@ public class HiveFlightProducerTest {
         assertThrows(RuntimeException.class, () -> hiveFlightProducer.getFlightInfo(context, descriptor));
     }
 }
-
