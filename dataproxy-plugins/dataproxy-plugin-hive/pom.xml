@@ -27,7 +27,10 @@
             <artifactId>dataproxy-plugin-database</artifactId>
         </dependency>
 
-
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf-lite</artifactId>
+        </dependency>
         <!-- Hive JDBC + Exclude default logging -->
         <dependency>
             <groupId>org.apache.hive</groupId>

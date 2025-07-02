@@ -90,9 +90,6 @@ public class HiveIntegrationTest extends BaseArrowFlightServerTest {
     private final int batchSize = 5;
     private final int batchCount = 3;
 
-    @TempDir
-    private static Path tempDir;
-    private static Path tmpFilePath;
 
     @BeforeAll
     static public void startServer() {

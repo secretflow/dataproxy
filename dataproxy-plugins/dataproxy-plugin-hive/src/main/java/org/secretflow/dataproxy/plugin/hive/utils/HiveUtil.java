@@ -138,7 +138,7 @@ public class HiveUtil {
 
     public static boolean checkTableExists(Connection connection, String tableName) {
         try {
-            PreparedStatement stmt = connection.prepareStatement("SHOW TABLES '?'");
+            PreparedStatement stmt = connection.prepareStatement("SHOW TABLES ?");
             stmt.setString(1, tableName);
             ResultSet rs = stmt.executeQuery();
             boolean exists = rs.next();
