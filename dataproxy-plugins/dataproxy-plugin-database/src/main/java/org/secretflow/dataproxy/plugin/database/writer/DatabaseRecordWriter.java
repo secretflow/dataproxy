@@ -46,6 +46,7 @@ public class DatabaseRecordWriter implements Writer {
     private final DatabaseTableConfig dbTableConfig;
     private final Function<DatabaseConnectConfig, Connection> initFunc;
     private final BiFunction<Connection, String, Boolean> checkTableExists;
+    private final int BATCH_NUM = 500;
     @FunctionalInterface
     public interface BuildCreateTableSqlFunc {
         String apply(String tableName, Schema schema, PartitionSpec partitionSpec);
@@ -55,11 +56,17 @@ public class DatabaseRecordWriter implements Writer {
     public interface BuildInsertSqlFunc {
         String apply(String tableName, Schema schema, Map<String,Object> data, PartitionSpec partitionSpec);
     }
-    private final BuildInsertSqlFunc buildInsertSql;
+    private BuildInsertSqlFunc buildInsertSql;
 
+    @FunctionalInterface
+    public interface BuildMultiInsertSqlFunc {
+        String apply(String tableName, Schema schema, List<Map<String,Object>> data, PartitionSpec partitionSpec);
+    }
+    private BuildMultiInsertSqlFunc buildMultiInsertSql;
     private final PartitionSpec partitionSpec;
     private final String tableName;
     private Connection connection;
+    private final boolean supportMutliInsert;
 
     public DatabaseRecordWriter(DatabaseWriteConfig commandConfig,
                                 Function<DatabaseConnectConfig, Connection> initFunc,
@@ -75,6 +82,25 @@ public class DatabaseRecordWriter implements Writer {
         this.buildInsertSql = buildInsertSql;
         this.tableName = this.dbTableConfig.tableName();
         this.partitionSpec = new PartitionSpec(this.dbTableConfig.partition());
+        supportMutliInsert = false;
+        this.prepare();
+    }
+
+    public DatabaseRecordWriter(DatabaseWriteConfig commandConfig,
+                                Function<DatabaseConnectConfig, Connection> initFunc,
+                                BuildCreateTableSqlFunc buildCreateTableSql,
+                                BuildMultiInsertSqlFunc buildMultiInsertSql,
+                                BiFunction<Connection, String, Boolean> checkTableExists) {
+        this.commandConfig = commandConfig;
+        this.dbConnectConfig = commandConfig.getDbConnectConfig();
+        this.dbTableConfig = commandConfig.getCommandConfig();
+        this.initFunc = initFunc;
+        this.checkTableExists = checkTableExists;
+        this.buildCreateTableSql = buildCreateTableSql;
+        this.buildMultiInsertSql = buildMultiInsertSql;
+        this.tableName = this.dbTableConfig.tableName();
+        this.partitionSpec = new PartitionSpec(this.dbTableConfig.partition());
+        supportMutliInsert = true;
         this.prepare();
     }
 
@@ -149,14 +175,32 @@ public class DatabaseRecordWriter implements Writer {
         int columnCount = root.getFieldVectors().size();
 
         String columnName;
-        Record record = new Record();
-        for(int rowIndex = 0; rowIndex < batchSize; rowIndex ++) {
-            for(int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
-                log.info("column: {}, type: {}", columnIndex, root.getFieldVectors().get(columnIndex));
-                columnName = root.getVector(columnIndex).getField().getName().toLowerCase();
-                record.set(columnName, this.getValue(root.getFieldVectors().get(columnIndex), rowIndex));
+
+        if(supportMutliInsert) {
+            List<Map<String, Object>> multiRecords = new ArrayList<>();
+            for(int rowIndex = 0; rowIndex < batchSize; rowIndex ++) {
+                Record record = new Record();
+                for(int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+                    log.info("column: {}, type: {}", columnIndex, root.getFieldVectors().get(columnIndex));
+                    columnName = root.getVector(columnIndex).getField().getName().toLowerCase();
+                    record.set(columnName, this.getValue(root.getFieldVectors().get(columnIndex), rowIndex));
+                }
+                multiRecords.add(record.getData());
+                if(multiRecords.size() == BATCH_NUM) {
+                    this.insertMultiData(commandConfig.getResultSchema(), multiRecords);
+                    multiRecords.clear();
+                }
             }
-            this.insertData(commandConfig.getResultSchema(), record.getData());
+        } else {
+            for(int rowIndex = 0; rowIndex < batchSize; rowIndex ++) {
+                Record record = new Record();
+                for(int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+                    log.info("column: {}, type: {}", columnIndex, root.getFieldVectors().get(columnIndex));
+                    columnName = root.getVector(columnIndex).getField().getName().toLowerCase();
+                    record.set(columnName, this.getValue(root.getFieldVectors().get(columnIndex), rowIndex));
+                }
+                this.insertData(commandConfig.getResultSchema(), record.getData());
+            }
         }
     }
 
@@ -219,21 +263,44 @@ public class DatabaseRecordWriter implements Writer {
         }
     }
 
-    public void insertData(Schema arrowSchema, Map<String, Object> data){
+    public void insertData(Schema arrowSchema, Map<String, Object> data) {
         String sql = this.buildInsertSql.apply(tableName, arrowSchema, data, partitionSpec);
         PreparedStatement stmt = null;
         try {
             stmt = connection.prepareStatement(sql);
-            int index = 1;
+//            int index = 1;
+//
+//            for (Field field : arrowSchema.getFields()) {
+//                String columnName = field.getName();
+//
+//                Object value = data.get(columnName);
+//                if (value != null) {
+//                    setStatementParameter(stmt, index++, value);
+//                }
+//            }
 
-            for (Field field : arrowSchema.getFields()) {
-                String columnName = field.getName();
-
-                Object value = data.get(columnName);
-                if (value != null) {
-                    setStatementParameter(stmt, index++, value);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            log.error("insert data error: sql:\"{}\" error:\"{}\"", sql, e.getMessage());
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                if(stmt != null) {
+                    stmt.close();
                 }
+            } catch (SQLException e) {
+                log.error("statement close error: {}", e.getMessage());
             }
+        }
+    }
+
+    public void insertMultiData(Schema arrowSchema, List<Map<String, Object>> multiData){
+        String sql = this.buildMultiInsertSql.apply(tableName, arrowSchema, multiData, partitionSpec);
+        PreparedStatement stmt = null;
+        try {
+            stmt = connection.prepareStatement(sql);
+//            int index = 1;
+////            for()
 
             stmt.executeUpdate();
         } catch (SQLException e) {

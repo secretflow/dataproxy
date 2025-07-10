@@ -29,6 +29,7 @@ import org.secretflow.dataproxy.plugin.database.utils.PartitionSpec;
 import java.sql.*;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class HiveUtil {
@@ -196,6 +197,56 @@ public class HiveUtil {
         log.info("buildInsertSql sql: {}", sb);
         return sb.toString();
     }
+
+    public static String buildMultiRowInsertSql(String tableName, Schema schema, List<Map<String, Object>> dataList, PartitionSpec partitionSpec) {
+        if (dataList == null || dataList.isEmpty()) {
+            throw new IllegalArgumentException("No data to insert");
+        }
+
+        Set<String> partitionKeys = partitionSpec.keys();
+        List<Field> fields = schema.getFields();
+
+        // 取第一条数据判断 partition
+        Map<String, Object> firstRow = dataList.get(0);
+        List<String> partitionClauses = new ArrayList<>();
+        for (String partKey : partitionKeys) {
+            Object partVal = firstRow.get(partKey);
+            Field field = fields.stream()
+                    .filter(f -> f.getName().equals(partKey))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Partition key not found in schema: " + partKey));
+            partitionClauses.add(partKey + "=" + formatValue(partVal, field.getType()));
+        }
+
+        // 非 partition 字段
+        List<String> columns = fields.stream()
+                .map(Field::getName)
+                .filter(name -> !partitionKeys.contains(name))
+                .collect(Collectors.toList());
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("INSERT INTO TABLE ").append(tableName);
+        if (!partitionClauses.isEmpty()) {
+            sb.append(" PARTITION (").append(String.join(", ", partitionClauses)).append(")");
+        }
+        sb.append(" (").append(String.join(", ", columns)).append(")");
+        sb.append(" VALUES ");
+
+        List<String> rows = new ArrayList<>();
+        for (Map<String, Object> row : dataList) {
+            List<String> vals = new ArrayList<>();
+            for (String col : columns) {
+                Object val = row.get(col);
+                ArrowType type = schema.findField(col).getType();
+                vals.add(formatValue(val, type));
+            }
+            rows.add("(" + String.join(", ", vals) + ")");
+        }
+
+        sb.append(String.join(",\n", rows));
+        return sb.toString();
+    }
+
 
     // 根据 ArrowType 和值格式化（如加引号）
     private static String formatValue(Object value, ArrowType type) {

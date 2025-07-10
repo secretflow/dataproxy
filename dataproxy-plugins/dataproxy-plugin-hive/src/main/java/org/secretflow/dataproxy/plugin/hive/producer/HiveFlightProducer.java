@@ -40,7 +40,7 @@ public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
         return new DatabaseRecordWriter(config,
                 HiveUtil::initHive,
                 HiveUtil::buildCreateTableSql,
-                HiveUtil::buildInsertSql,
+                HiveUtil::buildMultiRowInsertSql,
                 HiveUtil::checkTableExists);
     }
 }
