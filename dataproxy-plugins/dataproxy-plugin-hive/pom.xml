@@ -7,35 +7,23 @@
         <groupId>org.secretflow</groupId>
         <artifactId>dataproxy-plugins</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>dataproxy-plugin-hive</artifactId>
+    <packaging>jar</packaging>
 
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
     <dependencies>
-        <dependency>
-            <groupId>org.secretflow</groupId>
-            <artifactId>dataproxy-server</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>org.secretflow</groupId>
             <artifactId>dataproxy-plugin-database</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf-lite</artifactId>
-        </dependency>
         <!-- Hive JDBC + Exclude default logging -->
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-jdbc</artifactId>
-            <version>4.0.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -48,21 +36,12 @@
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-service-rpc</artifactId>
-            <version>4.0.1</version>
-        </dependency>
-
-        <!-- Thrift -->
-        <dependency>
-            <groupId>org.apache.thrift</groupId>
-            <artifactId>libthrift</artifactId>
-            <version>0.17.0</version>
         </dependency>
 
         <!-- Hadoop for Hive JDBC -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
-            <version>3.4.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -73,7 +52,6 @@
         <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-service</artifactId>
-            <version>4.0.1</version>
             <exclusions>
                 <exclusion>
                     <groupId>ch.qos.logback</groupId>

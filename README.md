@@ -23,3 +23,34 @@ Non-release version of DataProxy is only for demonstration and should not be use
 Although this version of DataProxy covers the basic abilities, there may be some security issues and functional defects
 due to insufficient functionality and unfinished items in the project.
 We welcome your active suggestions and look forward to the official release.
+
+
+
+# hive 分区
+
+
+```shell
+CREATE TABLE sales (
+  item_id INT,
+  amount DOUBLE
+)
+PARTITIONED BY (sale_date STRING);
+
+# 对应的文件 /user/hive/warehouse/sales/sale_date=2024-07-01/part-00000.parquet
+
+# 静态分区
+
+INSERT INTO TABLE sales PARTITION (sale_date='2024-07-01')
+VALUES (101, 88.0);
+
+
+#  动态分区 需要配置hive自动分区
+SET hive.exec.dynamic.partition = true;
+SET hive.exec.dynamic.partition.mode = nonstrict;
+
+INSERT INTO TABLE sales
+SELECT item_id, amount, sale_date FROM staging_sales;   #正常的insert语句
+
+# 动态分区会自动分区
+```
+

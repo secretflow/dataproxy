@@ -26,7 +26,9 @@ import org.secretflow.dataproxy.core.writer.Writer;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseTableConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
+import org.secretflow.dataproxy.plugin.database.utils.PartitionSpec;
 import org.secretflow.dataproxy.plugin.database.utils.Record;
+import org.secretflow.v1alpha1.common.Common;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
@@ -43,19 +45,36 @@ public class DatabaseRecordWriter implements Writer {
     private final DatabaseConnectConfig dbConnectConfig;
     private final DatabaseTableConfig dbTableConfig;
     private final Function<DatabaseConnectConfig, Connection> initFunc;
-    private final Function<String, String> wrapTableName;
-    private final Function<Field, String> arrowField2JdbcType;
     private final BiFunction<Connection, String, Boolean> checkTableExists;
+    @FunctionalInterface
+    public interface BuildCreateTableSqlFunc {
+        String apply(String tableName, Schema schema, PartitionSpec partitionSpec);
+    }
+    private final BuildCreateTableSqlFunc buildCreateTableSql;
+    @FunctionalInterface
+    public interface BuildInsertSqlFunc {
+        String apply(String tableName, Schema schema, Map<String,Object> data, PartitionSpec partitionSpec);
+    }
+    private final BuildInsertSqlFunc buildInsertSql;
+
+    private final PartitionSpec partitionSpec;
+    private final String tableName;
     private Connection connection;
 
-    public DatabaseRecordWriter(DatabaseWriteConfig commandConfig, Function<DatabaseConnectConfig, Connection> initFunc, Function<String, String> wrapTableName, Function<Field, String> arrowField2JdbcType, BiFunction<Connection, String, Boolean> checkTableExists) {
+    public DatabaseRecordWriter(DatabaseWriteConfig commandConfig,
+                                Function<DatabaseConnectConfig, Connection> initFunc,
+                                BuildCreateTableSqlFunc buildCreateTableSql,
+                                BuildInsertSqlFunc buildInsertSql,
+                                BiFunction<Connection, String, Boolean> checkTableExists) {
         this.commandConfig = commandConfig;
         this.dbConnectConfig = commandConfig.getDbConnectConfig();
         this.dbTableConfig = commandConfig.getCommandConfig();
         this.initFunc = initFunc;
-        this.wrapTableName = wrapTableName;
-        this.arrowField2JdbcType = arrowField2JdbcType;
         this.checkTableExists = checkTableExists;
+        this.buildCreateTableSql = buildCreateTableSql;
+        this.buildInsertSql = buildInsertSql;
+        this.tableName = this.dbTableConfig.tableName();
+        this.partitionSpec = new PartitionSpec(this.dbTableConfig.partition());
         this.prepare();
     }
 
@@ -65,11 +84,12 @@ public class DatabaseRecordWriter implements Writer {
         }
         return this.initFunc.apply(dbConnectConfig);
     }
+
     private void prepare(){
 
         connection = initDatabaseClient(dbConnectConfig);
 
-        preProcessing(connection, dbTableConfig.tableName());
+        preProcessing(dbTableConfig.tableName());
 
     }
 
@@ -134,12 +154,9 @@ public class DatabaseRecordWriter implements Writer {
             for(int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
                 log.info("column: {}, type: {}", columnIndex, root.getFieldVectors().get(columnIndex));
                 columnName = root.getVector(columnIndex).getField().getName().toLowerCase();
-
                 record.set(columnName, this.getValue(root.getFieldVectors().get(columnIndex), rowIndex));
             }
-
-            this.insertData(connection, commandConfig.getResultSchema(), dbTableConfig.tableName(), record.getData());
-            log.info("record: {}", record);
+            this.insertData(commandConfig.getResultSchema(), record.getData());
         }
     }
 
@@ -157,21 +174,11 @@ public class DatabaseRecordWriter implements Writer {
         }
     }
 
-
-    private void createTableFromSchema(Connection connection,Schema schema, String tableName){
-
-        StringBuilder createTableSql = new StringBuilder("CREATE TABLE "+ wrapTableName.apply(tableName) + " (");
-        for (Field field : schema.getFields()) {
-            createTableSql.append("\n   ");
-            createTableSql.append(field.getName());
-            createTableSql.append(" ");
-            createTableSql.append(arrowField2JdbcType.apply(field));
-            createTableSql.append(",");
-        }
-        createTableSql.setCharAt(createTableSql.length() - 1, ')');
+    private void createTable(Schema schema){
+        String createTableSql = this.buildCreateTableSql.apply(tableName, schema, partitionSpec);
         try{
             Statement stmt = connection.createStatement();
-            stmt.executeUpdate(createTableSql.toString());
+            stmt.executeUpdate(createTableSql);
             stmt.close();
         } catch (SQLException e) {
             log.error("create table sql:{} error: {}", createTableSql, e.getMessage());
@@ -180,7 +187,7 @@ public class DatabaseRecordWriter implements Writer {
 
     }
 
-    private void dropTable(Connection connection, String tableName) throws SQLException {
+    private void dropTable() throws SQLException {
         if (tableName == null || tableName.trim().isEmpty()) {
             throw new IllegalArgumentException("Table name cannot be null or empty");
         }
@@ -196,7 +203,7 @@ public class DatabaseRecordWriter implements Writer {
         }
     }
 
-    private void deleteAllRowOfTable(Connection connection, String tableName) throws SQLException {
+    private void deleteAllRowOfTable() throws SQLException {
         if (tableName == null || tableName.trim().isEmpty()) {
             throw new IllegalArgumentException("Table name cannot be null or empty");
         }
@@ -212,45 +219,34 @@ public class DatabaseRecordWriter implements Writer {
         }
     }
 
-    public void insertData(Connection conn, Schema arrowSchema, String tableName, Map<String, Object> data) {
-        StringBuilder sql = new StringBuilder("INSERT INTO "+ wrapTableName.apply(tableName) +" (");
-        StringBuilder values = new StringBuilder("VALUES (");
-
-        List<Field> fields = arrowSchema.getFields();
-
-        List<Object> valueList = new ArrayList<>();
-        for (Field field : fields) {
-            String columnName = field.getName();
-            sql.append(columnName).append(", ");
-
-            Object value = data.get(columnName);
-            if (value == null) {
-                values.append("NULL, ");
-            } else {
-                values.append("?, ");
-                valueList.add(value);
-            }
-        }
-
-        sql.setLength(sql.length() - 2);
-        sql.append(") ");
-
-        values.setLength(values.length() - 2);
-        values.append(")");
-
-        sql.append(values);
+    public void insertData(Schema arrowSchema, Map<String, Object> data){
+        String sql = this.buildInsertSql.apply(tableName, arrowSchema, data, partitionSpec);
+        PreparedStatement stmt = null;
         try {
-            PreparedStatement stmt = conn.prepareStatement(sql.toString());
+            stmt = connection.prepareStatement(sql);
             int index = 1;
-            for (Object value : valueList) {
-                setStatementParameter(stmt, index++, value);
+
+            for (Field field : arrowSchema.getFields()) {
+                String columnName = field.getName();
+
+                Object value = data.get(columnName);
+                if (value != null) {
+                    setStatementParameter(stmt, index++, value);
+                }
             }
 
             stmt.executeUpdate();
-            stmt.close();
         } catch (SQLException e) {
             log.error("insert data error: sql:\"{}\" error:\"{}\"", sql, e.getMessage());
             throw new RuntimeException(e);
+        } finally {
+            try {
+                if(stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException e) {
+                log.error("statement close error: {}", e.getMessage());
+            }
         }
     }
 
@@ -275,15 +271,15 @@ public class DatabaseRecordWriter implements Writer {
     }
 
     // create table when the table not exist
-    private void preProcessing(Connection connection, String tableName){
+    private void preProcessing(String tableName){
         if(checkTableExists.apply(connection, tableName)) {
             log.info("database table is exists, table name: {}", tableName);
             log.info("trying dropping table {}", tableName);
             try {
-                dropTable(connection, tableName);
+                this.dropTable();
             } catch (SQLException e) {
                 try {
-                    deleteAllRowOfTable(connection, tableName);
+                    this.deleteAllRowOfTable();
                 } catch (SQLException ex) {
                     throw new RuntimeException(ex);
                 }
@@ -292,8 +288,7 @@ public class DatabaseRecordWriter implements Writer {
         } else {
             log.info("table {} no exists", tableName);
         }
-
-        createTableFromSchema(connection, commandConfig.getResultSchema(), tableName);
+        createTable(commandConfig.getResultSchema());
     }
 
 }

@@ -39,8 +39,8 @@ public class HiveFlightProducer extends AbstractDatabaseFlightProducer {
     protected DatabaseRecordWriter initRecordWriter(DatabaseWriteConfig config) {
         return new DatabaseRecordWriter(config,
                 HiveUtil::initHive,
-                HiveUtil::wrapTableName,
-                HiveUtil::arrowField2JdbcType,
+                HiveUtil::buildCreateTableSql,
+                HiveUtil::buildInsertSql,
                 HiveUtil::checkTableExists);
     }
 }

@@ -46,6 +46,11 @@
         </dependency>
 
         <dependency>
+            <groupId>org.secretflow</groupId>
+            <artifactId>dataproxy-plugin-hive</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
@@ -63,10 +68,6 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>flight-core</artifactId>
         </dependency>
 
     </dependencies>
