@@ -247,7 +247,6 @@ public class HiveUtil {
         return sb.toString();
     }
 
-
     // 根据 ArrowType 和值格式化（如加引号）
     private static String formatValue(Object value, ArrowType type) {
         if (value == null) {
@@ -257,8 +256,8 @@ public class HiveUtil {
         return switch (type.getTypeID()) {
             case Utf8, Binary, FixedSizeBinary -> "'" + escapeString(value.toString()) + "'";
             case Int, FloatingPoint, Bool -> value.toString();
-            case Date, Timestamp, Time -> "'" + value.toString() + "'";
-            case Decimal -> value.toString();  // 可扩展加精度判断
+            case Date, Timestamp, Time -> "'" + value + "'";
+            case Decimal -> value.toString();
             default -> "'" + escapeString(value.toString()) + "'";
         };
     }
