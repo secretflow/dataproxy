@@ -51,9 +51,4 @@ public class HiveUtilTest {
         assertEquals(Types.MinorType.TIMESTAMPMILLI.getType(), HiveUtil.jdbcType2ArrowType("timestamp"));
     }
 
-    @Test
-    void TestWrapTableName() {
-        assertEquals("table", HiveUtil.wrapTableName("table"));
-    }
-
 }

@@ -17,6 +17,9 @@
 package org.secretflow.dataproxy.plugin.hive.utils;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -28,6 +31,7 @@ import org.secretflow.dataproxy.plugin.database.utils.PartitionSpec;
 
 import java.sql.*;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -247,7 +251,6 @@ public class HiveUtil {
         return sb.toString();
     }
 
-    // 根据 ArrowType 和值格式化（如加引号）
     private static String formatValue(Object value, ArrowType type) {
         if (value == null) {
             return "NULL";
@@ -263,55 +266,45 @@ public class HiveUtil {
     }
 
     private static String escapeString(String str) {
-        return str.replace("'", "''"); // Hive 中单引号转义为两个单引号
+        return str.replace("'", "''");
     }
 
     public static ArrowType jdbcType2ArrowType(String jdbcType) {
-        return switch (jdbcType.toLowerCase()) {
-            case "int", "integer" -> Types.MinorType.INT.getType();
-            case "bigint" -> Types.MinorType.BIGINT.getType();
-            case "float" -> Types.MinorType.FLOAT4.getType();
-            case "double" -> Types.MinorType.FLOAT8.getType();
-            case "varchar", "string" -> Types.MinorType.VARCHAR.getType();
-            case "boolean" -> Types.MinorType.BIT.getType();
-            case "date" -> Types.MinorType.DATEDAY.getType();
-            case "timestamp" -> Types.MinorType.TIMESTAMPMILLI.getType();
-            default -> throw new IllegalArgumentException("Unsupported JDBC type: " + jdbcType);
+        if (jdbcType == null || jdbcType.isEmpty()) {
+            throw new IllegalArgumentException("Hive type is null or empty");
+        }
+
+        String type = jdbcType.trim().toLowerCase();
+
+        // 处理 decimal(p,s)
+        if (type.startsWith("decimal")) {
+            Pattern pattern = Pattern.compile("decimal\\((\\d+),(\\d+)\\)");
+            Matcher matcher = pattern.matcher(type);
+            if (matcher.find()) {
+                int precision = Integer.parseInt(matcher.group(1));
+                int scale = Integer.parseInt(matcher.group(2));
+                return new ArrowType.Decimal(precision, scale);
+            } else {
+                return new ArrowType.Decimal(38, 10); // 默认精度
+            }
+        }
+
+        return switch (type) {
+            case "tinyint" -> new ArrowType.Int(8, true);
+            case "smallint" -> new ArrowType.Int(16, true);
+            case "int", "integer" -> new ArrowType.Int(32, true);
+            case "bigint" -> new ArrowType.Int(64, true);
+            case "float" -> new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
+            case "double" -> new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+            case "string", "varchar", "char" -> new ArrowType.Utf8();
+            case "boolean" -> new ArrowType.Bool();
+            case "date" -> new ArrowType.Date(DateUnit.DAY);
+            case "timestamp" -> new ArrowType.Timestamp(TimeUnit.MILLISECOND, null);
+            case "binary" -> new ArrowType.Binary();
+
+            default -> throw new IllegalArgumentException("Unsupported Hive type: " + jdbcType);
         };
     }
-
-    public static String wrapTableName(String tableName) {
-        return tableName;
-    }
-
-//    public static String arrowField2JdbcType(Field field) {
-//        return switch (field.getFieldType().getType().getTypeID()) {
-//            case Utf8 -> "VARCHAR(255)";
-//            case Int -> switch (((ArrowType.Int)(field.getFieldType().getType())).getBitWidth()) {
-//                case 8 -> "TINYINT";
-//                case 16 -> "SMALLINT";
-//                case 32 -> "INT";
-//                case 64 -> "BIGINT";
-//                default ->
-//                        throw new IllegalArgumentException("Unexpected INT value BitWidth: " + ((ArrowType.Int)(field.getFieldType().getType())).getBitWidth());
-//            };
-//            case FloatingPoint -> switch (((ArrowType.FloatingPoint)(field.getFieldType().getType())).getPrecision()){
-//                case HALF, SINGLE -> "FLOAT";
-//                case DOUBLE -> "DOUBLE";
-//            };
-//            case Bool -> "BOOLEAN";
-//            case Date -> "DATE";
-//            case Time -> "TIME";
-//            case Timestamp -> "TIMESTAMP";
-//            case Decimal -> "DECIMAL(10, 2)";
-//            case Binary -> "BLOB";
-//            case FixedSizeBinary -> "BINARY";
-//            default -> {
-//                log.warn("Not Implemented type: {}", field.getFieldType().getType().getTypeID());
-//                throw new IllegalArgumentException("Unexpected arrow field type: "+ field.getFieldType().getType().getTypeID());
-//            }
-//        };
-//    }
 
     public static String arrowTypeStrToJdbcType(String arrowTypeStr) {
         if (arrowTypeStr == null || arrowTypeStr.isEmpty()) {
@@ -321,24 +314,24 @@ public class HiveUtil {
         arrowTypeStr = arrowTypeStr.trim();
 
         if (arrowTypeStr.startsWith("Utf8")) {
-            return "VARCHAR(255)";
+            return "STRING";
         } else if (arrowTypeStr.startsWith("Int")) {
-            // 匹配 Int(bitWidth, isSigned)
-            if (arrowTypeStr.contains("8")) {
+            // Int(bitWidth, isSigned)
+            if (arrowTypeStr.contains("bitWidth=8")) {
                 return "TINYINT";
-            } else if (arrowTypeStr.contains("16")) {
+            } else if (arrowTypeStr.contains("bitWidth=16")) {
                 return "SMALLINT";
-            } else if (arrowTypeStr.contains("32")) {
+            } else if (arrowTypeStr.contains("bitWidth=32")) {
                 return "INT";
-            } else if (arrowTypeStr.contains("64")) {
+            } else if (arrowTypeStr.contains("bitWidth=64")) {
                 return "BIGINT";
             } else {
-                throw new IllegalArgumentException("Unexpected INT value: " + arrowTypeStr);
+                throw new IllegalArgumentException("Unexpected Int width: " + arrowTypeStr);
             }
         } else if (arrowTypeStr.startsWith("FloatingPoint")) {
-            if (arrowTypeStr.contains("SINGLE") || arrowTypeStr.contains("HALF")) {
+            if (arrowTypeStr.contains("precision=SINGLE")) {
                 return "FLOAT";
-            } else if (arrowTypeStr.contains("DOUBLE")) {
+            } else if (arrowTypeStr.contains("precision=DOUBLE")) {
                 return "DOUBLE";
             } else {
                 throw new IllegalArgumentException("Unexpected FloatingPoint precision: " + arrowTypeStr);
@@ -348,13 +341,21 @@ public class HiveUtil {
         } else if (arrowTypeStr.startsWith("Date")) {
             return "DATE";
         } else if (arrowTypeStr.startsWith("Time")) {
-            return "TIME";
+            return "STRING";
         } else if (arrowTypeStr.startsWith("Timestamp")) {
             return "TIMESTAMP";
         } else if (arrowTypeStr.startsWith("Decimal")) {
-            return "DECIMAL(10, 2)";
+            Pattern pattern = Pattern.compile("precision=(\\d+), scale=(\\d+)");
+            Matcher matcher = pattern.matcher(arrowTypeStr);
+            if (matcher.find()) {
+                String p = matcher.group(1);
+                String s = matcher.group(2);
+                return "DECIMAL(" + p + ", " + s + ")";
+            } else {
+                return "DECIMAL(10, 2)";
+            }
         } else if (arrowTypeStr.startsWith("Binary")) {
-            return "BLOB";
+            return "BINARY";
         } else if (arrowTypeStr.startsWith("FixedSizeBinary")) {
             return "BINARY";
         } else {
