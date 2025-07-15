@@ -220,10 +220,8 @@ public class DatabaseRecordWriter implements Writer {
 
     private void createTable(Schema schema){
         String createTableSql = this.buildCreateTableSql.apply(tableName, schema, partitionSpec);
-        try{
-            Statement stmt = connection.createStatement();
+        try (Statement stmt = connection.createStatement()){
             stmt.executeUpdate(createTableSql);
-            stmt.close();
         } catch (SQLException e) {
             log.error("create table sql:{} error: {}", createTableSql, e.getMessage());
             throw new RuntimeException(e);
@@ -265,77 +263,24 @@ public class DatabaseRecordWriter implements Writer {
 
     public void insertData(Schema arrowSchema, Map<String, Object> data) {
         String sql = this.buildInsertSql.apply(tableName, arrowSchema, data, partitionSpec);
-        PreparedStatement stmt = null;
-        try {
-            stmt = connection.prepareStatement(sql);
-//            int index = 1;
-//
-//            for (Field field : arrowSchema.getFields()) {
-//                String columnName = field.getName();
-//
-//                Object value = data.get(columnName);
-//                if (value != null) {
-//                    setStatementParameter(stmt, index++, value);
-//                }
-//            }
-
+        try (PreparedStatement stmt = connection.prepareStatement(sql)){
             stmt.executeUpdate();
         } catch (SQLException e) {
             log.error("insert data error: sql:\"{}\" error:\"{}\"", sql, e.getMessage());
             throw new RuntimeException(e);
-        } finally {
-            try {
-                if(stmt != null) {
-                    stmt.close();
-                }
-            } catch (SQLException e) {
-                log.error("statement close error: {}", e.getMessage());
-            }
         }
     }
 
     public void insertMultiData(Schema arrowSchema, List<Map<String, Object>> multiData){
         String sql = this.buildMultiInsertSql.apply(tableName, arrowSchema, multiData, partitionSpec);
-        PreparedStatement stmt = null;
-        try {
-            stmt = connection.prepareStatement(sql);
-//            int index = 1;
-////            for()
-
+        try (PreparedStatement stmt = connection.prepareStatement(sql)){
             stmt.executeUpdate();
         } catch (SQLException e) {
             log.error("insert data error: sql:\"{}\" error:\"{}\"", sql, e.getMessage());
             throw new RuntimeException(e);
-        } finally {
-            try {
-                if(stmt != null) {
-                    stmt.close();
-                }
-            } catch (SQLException e) {
-                log.error("statement close error: {}", e.getMessage());
-            }
         }
     }
 
-    private static void setStatementParameter(PreparedStatement stmt, int index, Object value) throws SQLException {
-        if (value == null) {
-            stmt.setNull(index, Types.NULL);
-        } else if (value instanceof Integer) {
-            stmt.setInt(index, (Integer) value);
-        } else if (value instanceof String) {
-            stmt.setString(index, (String) value);
-        } else if (value instanceof Long) {
-            stmt.setLong(index, (Long) value);
-        } else if (value instanceof Double) {
-            stmt.setDouble(index, (Double) value);
-        } else if (value instanceof Float) {
-            stmt.setFloat(index, (Float) value);
-        } else if (value instanceof Boolean) {
-            stmt.setBoolean(index, (Boolean) value);
-        } else {
-            stmt.setObject(index, value);
-        }
-    }
 
     // create table when the table not exist
     private void preProcessing(String tableName){
