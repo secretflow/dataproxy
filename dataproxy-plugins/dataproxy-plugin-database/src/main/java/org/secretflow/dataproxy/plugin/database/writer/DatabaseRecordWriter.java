@@ -19,20 +19,18 @@ package org.secretflow.dataproxy.plugin.database.writer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseCommandConfig;
 import org.secretflow.dataproxy.core.writer.Writer;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseTableConfig;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseWriteConfig;
-import org.secretflow.dataproxy.plugin.database.utils.PartitionSpec;
 import org.secretflow.dataproxy.plugin.database.utils.Record;
-import org.secretflow.v1alpha1.common.Common;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -49,24 +47,46 @@ public class DatabaseRecordWriter implements Writer {
     private final int BATCH_NUM = 500;
     @FunctionalInterface
     public interface BuildCreateTableSqlFunc {
-        String apply(String tableName, Schema schema, PartitionSpec partitionSpec);
+        String apply(String tableName, Schema schema, Map<String, String> partitionSpec);
     }
     private final BuildCreateTableSqlFunc buildCreateTableSql;
     @FunctionalInterface
     public interface BuildInsertSqlFunc {
-        String apply(String tableName, Schema schema, Map<String,Object> data, PartitionSpec partitionSpec);
+        String apply(String tableName, Schema schema, Map<String,Object> data, Map<String, String> partitionSpec);
     }
     private BuildInsertSqlFunc buildInsertSql;
 
     @FunctionalInterface
     public interface BuildMultiInsertSqlFunc {
-        String apply(String tableName, Schema schema, List<Map<String,Object>> data, PartitionSpec partitionSpec);
+        String apply(String tableName, Schema schema, List<Map<String,Object>> data, Map<String, String> partitionSpec);
     }
     private BuildMultiInsertSqlFunc buildMultiInsertSql;
-    private final PartitionSpec partitionSpec;
+    private final Map<String, String> partitionSpec;
     private final String tableName;
     private Connection connection;
     private final boolean supportMutliInsert;
+
+    public static Map<String, String> PasrsePartition(String partition) {
+        Map<String, String> res = new LinkedHashMap<>();
+        String[] groups = partition.split("[,/]");
+        for (String group : groups) {
+            String[] kv = group.split("=");
+            if (kv.length != 2) {
+                throw new IllegalArgumentException("Invalid partition spec.");
+            }
+
+            String k = kv[0].trim();
+            String v = kv[1].trim()
+                    .replaceAll("'", "")
+                    .replaceAll("\"", "");
+            if (k.isEmpty() || v.isEmpty()) {
+                throw new IllegalArgumentException("Invalid partition spec.");
+            }
+
+            res.put(k, v);
+        }
+        return res;
+    }
 
     public DatabaseRecordWriter(DatabaseWriteConfig commandConfig,
                                 Function<DatabaseConnectConfig, Connection> initFunc,
@@ -81,7 +101,7 @@ public class DatabaseRecordWriter implements Writer {
         this.buildCreateTableSql = buildCreateTableSql;
         this.buildInsertSql = buildInsertSql;
         this.tableName = this.dbTableConfig.tableName();
-        this.partitionSpec = new PartitionSpec(this.dbTableConfig.partition());
+        this.partitionSpec = PasrsePartition(this.dbTableConfig.partition());
         supportMutliInsert = false;
         this.prepare();
     }
@@ -99,7 +119,7 @@ public class DatabaseRecordWriter implements Writer {
         this.buildCreateTableSql = buildCreateTableSql;
         this.buildMultiInsertSql = buildMultiInsertSql;
         this.tableName = this.dbTableConfig.tableName();
-        this.partitionSpec = new PartitionSpec(this.dbTableConfig.partition());
+        this.partitionSpec = PasrsePartition(this.dbTableConfig.partition());
         supportMutliInsert = true;
         this.prepare();
     }

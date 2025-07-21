@@ -20,20 +20,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.secretflow.dataproxy.common.exceptions.DataproxyErrorCode;
 import org.secretflow.dataproxy.common.exceptions.DataproxyException;
 import org.secretflow.dataproxy.plugin.database.config.DatabaseConnectConfig;
-import org.secretflow.dataproxy.plugin.database.utils.PartitionSpec;
+import org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter;
 
 import java.sql.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static org.secretflow.dataproxy.plugin.database.writer.DatabaseRecordWriter.PasrsePartition;
 
 @Slf4j
 public class HiveUtil {
@@ -77,9 +78,9 @@ public class HiveUtil {
         if (!whereClause.isEmpty()) {
             String[] groups = whereClause.split("[,/]");
             if (groups.length > 1) {
-                final PartitionSpec partitionSpec = new PartitionSpec(whereClause);
+                final Map<String, String> partitionSpec = PasrsePartition(whereClause);
 
-                for (String key : partitionSpec.keys()) {
+                for (String key : partitionSpec.keySet()) {
                     if (!columnOrValuePattern.matcher(key).matches()) {
                         throw DataproxyException.of(DataproxyErrorCode.PARAMS_UNRELIABLE, "Invalid partition key:" + key);
                     }
@@ -88,7 +89,7 @@ public class HiveUtil {
                     }
                 }
 
-                List<String> list = partitionSpec.keys().stream().map(k -> k + "='" + partitionSpec.get(k) + "'").toList();
+                List<String> list = partitionSpec.keySet().stream().map(k -> k + "='" + partitionSpec.get(k) + "'").toList();
                 whereClause = String.join(" and ", list);
             }
         }
@@ -97,12 +98,12 @@ public class HiveUtil {
         return sql;
     }
 
-    public static String buildCreateTableSql(String tableName, Schema schema, PartitionSpec partitionSpec) {
+    public static String buildCreateTableSql(String tableName, Schema schema, Map<String, String> partition) {
         StringBuilder sb = new StringBuilder();
         sb.append("CREATE TABLE ").append(tableName).append(" (\n");
 
         List<Field> fields = schema.getFields();
-        Set<String> partitionKeys = partitionSpec.keys(); // 分区字段名集合
+        Set<String> partitionKeys = partition.keySet(); // 分区字段名集合
 
         // 用于快速通过字段名查找 Field
         Map<String, Field> fieldMap = new LinkedHashMap<>();
@@ -123,7 +124,7 @@ public class HiveUtil {
             }
             sb.append("  ").append(fieldName)
                     .append(" ")
-                    .append(arrowTypeStrToJdbcType(field.getType().toString()));
+                    .append(arrowTypeToJdbcType(field.getType()));
             first = false;
         }
         sb.append("\n)");
@@ -144,7 +145,7 @@ public class HiveUtil {
                 }
                 sb.append("  ").append(partKey)
                         .append(" ")
-                        .append(arrowTypeStrToJdbcType(partitionField.getType().toString()));
+                        .append(arrowTypeToJdbcType(partitionField.getType()));
                 first = false;
             }
             sb.append("\n)");
@@ -154,9 +155,9 @@ public class HiveUtil {
         return sb.toString();
     }
 
-    public static String buildInsertSql(String tableName, Schema schema, Map<String, Object> data, PartitionSpec partitionSpec) {
+    public static String buildInsertSql(String tableName, Schema schema, Map<String, Object> data, Map<String, String> partition) {
         List<Field> fields = schema.getFields();
-        Set<String> partitionKeys = partitionSpec.keys();
+        Set<String> partitionKeys = partition.keySet();
 
         List<String> columns = new ArrayList<>();
         List<String> values = new ArrayList<>();
@@ -202,12 +203,12 @@ public class HiveUtil {
         return sb.toString();
     }
 
-    public static String buildMultiRowInsertSql(String tableName, Schema schema, List<Map<String, Object>> dataList, PartitionSpec partitionSpec) {
+    public static String buildMultiRowInsertSql(String tableName, Schema schema, List<Map<String, Object>> dataList, Map<String, String> partition) {
         if (dataList == null || dataList.isEmpty()) {
             throw new IllegalArgumentException("No data to insert");
         }
 
-        Set<String> partitionKeys = partitionSpec.keys();
+        Set<String> partitionKeys = partition.keySet();
         List<Field> fields = schema.getFields();
 
         // 取第一条数据判断 partition
@@ -283,9 +284,9 @@ public class HiveUtil {
             if (matcher.find()) {
                 int precision = Integer.parseInt(matcher.group(1));
                 int scale = Integer.parseInt(matcher.group(2));
-                return new ArrowType.Decimal(precision, scale);
+                return new ArrowType.Decimal(precision, scale, 128);
             } else {
-                return new ArrowType.Decimal(38, 10); // 默认精度
+                return new ArrowType.Decimal(38, 10, 128); // 默认精度
             }
         }
 
@@ -306,60 +307,50 @@ public class HiveUtil {
         };
     }
 
-    public static String arrowTypeStrToJdbcType(String arrowTypeStr) {
-        if (arrowTypeStr == null || arrowTypeStr.isEmpty()) {
-            throw new IllegalArgumentException("Arrow type string is null or empty");
-        }
-
-        arrowTypeStr = arrowTypeStr.trim();
-
-        if (arrowTypeStr.startsWith("Utf8")) {
+    public static String arrowTypeToJdbcType(ArrowType arrowType) {
+        if (arrowType instanceof ArrowType.Utf8) {
             return "STRING";
-        } else if (arrowTypeStr.startsWith("Int")) {
-            // Int(bitWidth, isSigned)
-            if (arrowTypeStr.contains("bitWidth=8")) {
-                return "TINYINT";
-            } else if (arrowTypeStr.contains("bitWidth=16")) {
-                return "SMALLINT";
-            } else if (arrowTypeStr.contains("bitWidth=32")) {
-                return "INT";
-            } else if (arrowTypeStr.contains("bitWidth=64")) {
-                return "BIGINT";
-            } else {
-                throw new IllegalArgumentException("Unexpected Int width: " + arrowTypeStr);
+        } else if (arrowType instanceof ArrowType.Int) {
+            ArrowType.Int intType = (ArrowType.Int) arrowType;
+            int bitWidth = intType.getBitWidth();
+            boolean signed = intType.getIsSigned();
+            switch (bitWidth) {
+                case 8:
+                    return signed ? "TINYINT" : "TINYINT UNSIGNED";
+                case 16:
+                    return signed ? "SMALLINT" : "SMALLINT UNSIGNED";
+                case 32:
+                    return signed ? "INT" : "INT UNSIGNED";
+                case 64:
+                    return signed ? "BIGINT" : "BIGINT UNSIGNED";
+                default:
+                    throw new IllegalArgumentException("Unsupported Int bitWidth: " + bitWidth);
             }
-        } else if (arrowTypeStr.startsWith("FloatingPoint")) {
-            if (arrowTypeStr.contains("precision=SINGLE")) {
-                return "FLOAT";
-            } else if (arrowTypeStr.contains("precision=DOUBLE")) {
-                return "DOUBLE";
-            } else {
-                throw new IllegalArgumentException("Unexpected FloatingPoint precision: " + arrowTypeStr);
+        } else if (arrowType instanceof ArrowType.FloatingPoint) {
+            ArrowType.FloatingPoint fp = (ArrowType.FloatingPoint) arrowType;
+            switch (fp.getPrecision()) {
+                case SINGLE:
+                    return "FLOAT";
+                case DOUBLE:
+                    return "DOUBLE";
+                default:
+                    throw new IllegalArgumentException("Unsupported floating point type");
             }
-        } else if (arrowTypeStr.startsWith("Bool")) {
+        } else if (arrowType instanceof ArrowType.Bool) {
             return "BOOLEAN";
-        } else if (arrowTypeStr.startsWith("Date")) {
+        } else if (arrowType instanceof ArrowType.Date) {
             return "DATE";
-        } else if (arrowTypeStr.startsWith("Time")) {
-            return "STRING";
-        } else if (arrowTypeStr.startsWith("Timestamp")) {
+        } else if (arrowType instanceof ArrowType.Time) {
+            return "TIME";
+        } else if (arrowType instanceof ArrowType.Timestamp) {
             return "TIMESTAMP";
-        } else if (arrowTypeStr.startsWith("Decimal")) {
-            Pattern pattern = Pattern.compile("precision=(\\d+), scale=(\\d+)");
-            Matcher matcher = pattern.matcher(arrowTypeStr);
-            if (matcher.find()) {
-                String p = matcher.group(1);
-                String s = matcher.group(2);
-                return "DECIMAL(" + p + ", " + s + ")";
-            } else {
-                return "DECIMAL(10, 2)";
-            }
-        } else if (arrowTypeStr.startsWith("Binary")) {
-            return "BINARY";
-        } else if (arrowTypeStr.startsWith("FixedSizeBinary")) {
+        } else if (arrowType instanceof ArrowType.Decimal) {
+            ArrowType.Decimal dec = (ArrowType.Decimal) arrowType;
+            return "DECIMAL(" + dec.getPrecision() + ", " + dec.getScale() + ")";
+        } else if (arrowType instanceof ArrowType.Binary || arrowType instanceof ArrowType.FixedSizeBinary) {
             return "BINARY";
         } else {
-            throw new IllegalArgumentException("Unsupported Arrow type string: " + arrowTypeStr);
+            throw new IllegalArgumentException("Unsupported Arrow type: " + arrowType.getClass());
         }
     }
 

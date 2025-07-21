@@ -13,8 +13,10 @@
     <artifactId>dataproxy-plugin-hive</artifactId>
     <packaging>jar</packaging>
 
-    <dependencies>
+    <name>dataproxy-plugin-hive</name>
+    <url>https://maven.apache.org</url>
 
+    <dependencies>
         <dependency>
             <groupId>org.secretflow</groupId>
             <artifactId>dataproxy-plugin-database</artifactId>
@@ -32,6 +34,10 @@
             </exclusions>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-format</artifactId>
+        </dependency>
         <!-- Hive RPC (needed for TCLIService) -->
         <dependency>
             <groupId>org.apache.hive</groupId>
@@ -46,6 +52,10 @@
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.hadoop.thirdparty</groupId>
+                    <artifactId>hadoop-shaded-protobuf_3_25</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
