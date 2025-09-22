@@ -76,7 +76,7 @@
         <commons-compress.version>1.26.2</commons-compress.version>
         <commons-configuration2.version>2.10.1</commons-configuration2.version>
 
-        <mockito.version>5.15.2</mockito.version>
+        <mockito.version>5.20.0</mockito.version>
         <mockito-inline.version>5.2.0</mockito-inline.version>
         <system-stubs-jupiter.version>2.1.7</system-stubs-jupiter.version>
         <jupiter.version>5.11.4</jupiter.version>
