@@ -447,6 +447,13 @@
         </dependencies>
     </dependencyManagement>
 
+    <repositories>
+        <repository>
+            <id>local-repo</id>
+            <url>file://${project.basedir}/dataproxy-plugins/dataproxy-plugin-kingbase/local-repo</url>
+        </repository>
+    </repositories>
+
     <build>
         <extensions>
             <extension>
