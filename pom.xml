@@ -79,7 +79,7 @@
         <mockito.version>5.15.2</mockito.version>
         <mockito-inline.version>5.2.0</mockito-inline.version>
         <system-stubs-jupiter.version>2.1.7</system-stubs-jupiter.version>
-        <jupiter.version>5.11.4</jupiter.version>
+        <jupiter.version>5.13.4</jupiter.version>
         <micrometer.version>1.14.5</micrometer.version>
         <testcontainers.version>1.19.7</testcontainers.version>
     </properties>
